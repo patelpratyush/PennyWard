@@ -1,0 +1,267 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth.js required tables ─────────────────────────────────────────────
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  accounts      AuthAccount[]
+  sessions      Session[]
+
+  financialAccounts   FinancialAccount[]
+  categories          Category[]
+  transactions        Transaction[]
+  budgets             Budget[]
+  debts               Debt[]
+  payoffScenarios     PayoffScenario[]
+  categorizationRules CategorizationRule[]
+
+  createdAt DateTime @default(now())
+}
+
+model AuthAccount {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── FinFlow domain (Phase 1) ────────────────────────────────────────────
+enum AccountType {
+  checking
+  savings
+  cash
+  credit_card
+  auto_loan
+  student_loan
+  mortgage
+  personal_loan
+  investment
+  other
+}
+
+model FinancialAccount {
+  id                String      @id @default(cuid())
+  userId            String
+  name              String
+  institution       String
+  type              AccountType
+  balance           Decimal     @db.Decimal(14, 2)
+  includeInNetWorth Boolean     @default(true)
+  archived          Boolean     @default(false)
+  creditLimit       Decimal?    @db.Decimal(14, 2)
+  apr               Decimal?    @db.Decimal(6, 4)
+  minimumPayment    Decimal?    @db.Decimal(12, 2)
+  dueDay            Int?
+  originalBalance   Decimal?    @db.Decimal(14, 2)
+  lastUpdated       DateTime    @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  debts        Debt[]
+
+  @@index([userId])
+}
+
+enum CategoryKind {
+  expense
+  income
+  transfer
+}
+
+model Category {
+  id       String       @id @default(cuid())
+  userId   String?
+  name     String
+  group    String
+  icon     String
+  color    String
+  kind     CategoryKind @default(expense)
+  archived Boolean      @default(false)
+  parentId String?
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgetEntries BudgetEntry[]
+  categorizationRules CategorizationRule[]
+
+  @@index([userId])
+}
+
+enum TransactionType {
+  income
+  expense
+  transfer
+}
+
+enum TransactionSource {
+  manual
+  csv
+  plaid
+}
+
+model Transaction {
+  id           String            @id @default(cuid())
+  userId       String
+  accountId    String
+  categoryId   String?
+  type         TransactionType
+  amount       Decimal           @db.Decimal(14, 2)
+  merchant     String
+  description  String?
+  date         DateTime          @db.Date
+  postedDate   DateTime?         @db.Date
+  notes        String?
+  tags         String[]          @default([])
+  recurring    Boolean           @default(false)
+  cleared      Boolean           @default(true)
+  source       TransactionSource @default(manual)
+  importHash   String?
+  createdAt    DateTime          @default(now())
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category Category?        @relation(fields: [categoryId], references: [id])
+
+  @@unique([userId, importHash])
+  @@index([userId, date])
+  @@index([accountId, date])
+}
+
+model Budget {
+  id             String   @id @default(cuid())
+  userId         String
+  month          String   // 'YYYY-MM'
+  expectedIncome Decimal  @db.Decimal(12, 2) @default(0)
+  savingsTarget  Decimal  @db.Decimal(12, 2) @default(0)
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries BudgetEntry[]
+
+  @@unique([userId, month])
+}
+
+model BudgetEntry {
+  id         String  @id @default(cuid())
+  budgetId   String
+  categoryId String
+  budgeted   Decimal @db.Decimal(12, 2)
+  rollover   Boolean @default(false)
+
+  budget   Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([budgetId, categoryId])
+}
+
+enum DebtType {
+  credit_card
+  auto_loan
+  student_loan
+  personal_loan
+  mortgage
+  medical
+  bnpl
+  other
+}
+
+model Debt {
+  id              String   @id @default(cuid())
+  userId          String
+  accountId       String?
+  name            String
+  lender          String
+  type            DebtType
+  balance         Decimal  @db.Decimal(14, 2)
+  originalBalance Decimal  @db.Decimal(14, 2)
+  apr             Decimal  @db.Decimal(6, 4)
+  minimumPayment  Decimal  @db.Decimal(12, 2)
+  dueDay          Int
+  creditLimit     Decimal? @db.Decimal(14, 2)
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account FinancialAccount? @relation(fields: [accountId], references: [id])
+
+  @@index([userId])
+}
+
+enum PayoffStrategy {
+  minimum
+  snowball
+  avalanche
+  custom
+}
+
+model PayoffScenario {
+  id            String         @id @default(cuid())
+  userId        String
+  name          String
+  strategy      PayoffStrategy
+  extraMonthly  Decimal        @db.Decimal(12, 2) @default(0)
+  oneTimePayment Decimal       @db.Decimal(12, 2) @default(0)
+  startMonth    String         // 'YYYY-MM'
+  customOrder   String[]       @default([])
+  createdAt     DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum MatchType {
+  contains
+  equals
+  regex
+}
+
+model CategorizationRule {
+  id         String    @id @default(cuid())
+  userId     String
+  matchType  MatchType
+  pattern    String
+  categoryId String
+  priority   Int       @default(0)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@index([userId])
+}
