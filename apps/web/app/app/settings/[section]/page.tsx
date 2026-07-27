@@ -233,8 +233,10 @@ function CategoriesSection() {
                     <span className="flex-1 text-sm">{c.name}</span>
                     {c.archived && <Badge variant="secondary" className="text-[10px]">Archived</Badge>}
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => {
-                      updateCategoryMutation.mutate({ id: c.id, patch: { archived: !c.archived } })
-                      toast.success(c.archived ? 'Category restored.' : 'Category archived — history is preserved.')
+                      updateCategoryMutation.mutate({ id: c.id, patch: { archived: !c.archived } }, {
+                        onSuccess: () => toast.success(c.archived ? 'Category restored.' : 'Category archived — history is preserved.'),
+                        onError: () => toast.error('Could not archive/restore this category.'),
+                      })
                     }}>
                       {c.archived ? 'Restore' : 'Archive'}
                     </Button>
