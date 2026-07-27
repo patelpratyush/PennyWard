@@ -14,11 +14,11 @@ function toDTO(row: Awaited<ReturnType<typeof db.financialAccount.findFirstOrThr
     includeInNetWorth: row.includeInNetWorth,
     archived: row.archived,
     lastUpdated: row.lastUpdated.toISOString().slice(0, 10),
-    creditLimit: row.creditLimit ? Number(row.creditLimit) : undefined,
-    apr: row.apr ? Number(row.apr) : undefined,
-    minimumPayment: row.minimumPayment ? Number(row.minimumPayment) : undefined,
+    creditLimit: row.creditLimit != null ? round2(Number(row.creditLimit)) : undefined,
+    apr: row.apr != null ? round2(Number(row.apr)) : undefined,
+    minimumPayment: row.minimumPayment != null ? round2(Number(row.minimumPayment)) : undefined,
     dueDay: row.dueDay ?? undefined,
-    originalBalance: row.originalBalance ? Number(row.originalBalance) : undefined,
+    originalBalance: row.originalBalance != null ? round2(Number(row.originalBalance)) : undefined,
   }
 }
 

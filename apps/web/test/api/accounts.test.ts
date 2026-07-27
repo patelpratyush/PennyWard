@@ -45,4 +45,28 @@ describe('GET /api/accounts', () => {
     const body = await res.json()
     expect(body.every((a: { name: string }) => a.name !== 'Secret')).toBe(true)
   })
+
+  it('preserves genuine zero values for money fields instead of dropping them to undefined', async () => {
+    await db.financialAccount.create({
+      data: {
+        userId: 'user_test',
+        name: 'Paid Off Card',
+        institution: 'Bank',
+        type: 'credit_card',
+        balance: 0,
+        creditLimit: 0,
+        apr: 0,
+        minimumPayment: 0,
+        originalBalance: 0,
+      },
+    })
+    const res = await GET()
+    const body = await res.json()
+    const account = body.find((a: { name: string }) => a.name === 'Paid Off Card')
+    expect(account).toBeDefined()
+    expect(account.creditLimit).toBe(0)
+    expect(account.apr).toBe(0)
+    expect(account.minimumPayment).toBe(0)
+    expect(account.originalBalance).toBe(0)
+  })
 })
