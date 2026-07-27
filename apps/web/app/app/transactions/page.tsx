@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useCategories } from '@/hooks/queries/useCategories'
 import { TransactionDialog } from '@/components/financial/TransactionDialog'
 import { PageHeader } from '@/components/shared/Misc'
 import { EmptyState } from '@/components/shared/States'
@@ -31,7 +32,8 @@ import type { Transaction } from '@/types'
 type SortKey = 'date' | 'merchant' | 'amount'
 
 function TransactionsInner() {
-  const { transactions, accounts, categories, deleteTransactions, updateTransaction } = useStore()
+  const { transactions, accounts, deleteTransactions, updateTransaction } = useStore()
+  const categories = useCategories().data ?? []
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const router = useRouter()

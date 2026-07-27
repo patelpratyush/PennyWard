@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { exportState, useStore } from '@/stores/useStore'
+import { useCategories, useCreateCategory, useUpdateCategory } from '@/hooks/queries/useCategories'
 import { PageHeader } from '@/components/shared/Misc'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -208,7 +209,9 @@ function NotificationsSection() {
 }
 
 function CategoriesSection() {
-  const { categories, addCategory, updateCategory } = useStore()
+  const categories = useCategories().data ?? []
+  const createCategory = useCreateCategory()
+  const updateCategoryMutation = useUpdateCategory()
   const [addOpen, setAddOpen] = useState(false)
   const [newCat, setNewCat] = useState({ name: '', group: 'Lifestyle', icon: 'shopping-bag' })
   const groups = [...new Set(categories.map((c) => c.group))]
@@ -230,7 +233,7 @@ function CategoriesSection() {
                     <span className="flex-1 text-sm">{c.name}</span>
                     {c.archived && <Badge variant="secondary" className="text-[10px]">Archived</Badge>}
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => {
-                      updateCategory(c.id, { archived: !c.archived })
+                      updateCategoryMutation.mutate({ id: c.id, patch: { archived: !c.archived } })
                       toast.success(c.archived ? 'Category restored.' : 'Category archived — history is preserved.')
                     }}>
                       {c.archived ? 'Restore' : 'Archive'}
@@ -268,7 +271,7 @@ function CategoriesSection() {
               </div>
             </div>
             <Button className="w-full" disabled={newCat.name.trim().length < 2} onClick={() => {
-              addCategory({ name: newCat.name.trim(), group: newCat.group, icon: newCat.icon, color: 'chart-8', archived: false })
+              createCategory.mutate({ name: newCat.name.trim(), group: newCat.group, icon: newCat.icon, color: 'chart-8' })
               toast.success('Category added.')
               setAddOpen(false)
               setNewCat({ name: '', group: 'Lifestyle', icon: 'shopping-bag' })

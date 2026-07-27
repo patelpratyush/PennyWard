@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useCategories } from '@/hooks/queries/useCategories'
 import { PageHeader, StatusBadge } from '@/components/shared/Misc'
 import { EmptyState } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
@@ -25,12 +26,16 @@ import { budgetStatus, budgetTotals, spendingByCategory } from '@/lib/finance/bu
 import { monthlySummaries } from '@/lib/finance/derive'
 import { formatCurrency, formatMonth, round2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import type { Category } from '@/types'
+
+const EMPTY_CATEGORIES: Category[] = []
 
 export default function Budgets() {
   const {
-    transactions, categories, budgets, upsertBudget, updateBudgetEntry,
+    transactions, budgets, upsertBudget, updateBudgetEntry,
     addBudgetEntry, removeBudgetEntry, copyBudget,
   } = useStore()
+  const categories = useCategories().data ?? EMPTY_CATEGORIES
   const [monthOffset, setMonthOffset] = useState(0)
   const [editingCell, setEditingCell] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
