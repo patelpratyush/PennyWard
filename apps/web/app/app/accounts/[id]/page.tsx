@@ -7,11 +7,12 @@ import { format, parseISO, subMonths } from 'date-fns'
 import { Archive, ArrowLeft, ArrowDownLeft, ArrowUpRight, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useAccounts, useUpdateAccount } from '@/hooks/queries/useAccounts'
 import { AccountDialog } from '@/components/financial/AccountDialog'
 import { ChartCard, PageHeader } from '@/components/shared/Misc'
 import { Money } from '@/components/shared/Money'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
-import { EmptyState, ErrorState } from '@/components/shared/States'
+import { EmptyState, ErrorState, LoadingSkeleton } from '@/components/shared/States'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency, formatDate, round2 } from '@/lib/format'
@@ -20,7 +21,9 @@ import { cn } from '@/lib/utils'
 export default function AccountDetail() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { accounts, transactions, categories, updateAccount } = useStore()
+  const { transactions, categories } = useStore()
+  const { data: accounts = [], isLoading } = useAccounts()
+  const updateAccountMut = useUpdateAccount()
   const [editOpen, setEditOpen] = useState(false)
   const account = accounts.find((a) => a.id === id)
 
@@ -61,6 +64,10 @@ export default function AccountDetail() {
     return { inflow, outflow, largest, topCats }
   }, [related])
 
+  if (isLoading) {
+    return <LoadingSkeleton rows={4} className="mt-6" />
+  }
+
   if (!account) {
     return (
       <ErrorState
@@ -82,7 +89,7 @@ export default function AccountDetail() {
         actions={
           <>
             <Button variant="outline" onClick={() => setEditOpen(true)}><Pencil className="mr-1.5 h-4 w-4" />Edit</Button>
-            <Button variant="outline" onClick={() => { updateAccount(account.id, { archived: true }); toast.success('Account archived.'); router.push('/app/accounts') }}>
+            <Button variant="outline" onClick={() => { updateAccountMut.mutate({ id: account.id, patch: { archived: true } }); toast.success('Account archived.'); router.push('/app/accounts') }}>
               <Archive className="mr-1.5 h-4 w-4" />Archive
             </Button>
           </>

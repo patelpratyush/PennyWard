@@ -1,0 +1,39 @@
+import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { getRequiredSession } from '@/lib/session'
+import { createAccountSchema } from '@/lib/validation/accounts'
+import { round2 } from '@/lib/format'
+
+function toDTO(row: Awaited<ReturnType<typeof db.financialAccount.findFirstOrThrow>>) {
+  return {
+    id: row.id,
+    name: row.name,
+    institution: row.institution,
+    type: row.type,
+    balance: round2(Number(row.balance)),
+    includeInNetWorth: row.includeInNetWorth,
+    archived: row.archived,
+    lastUpdated: row.lastUpdated.toISOString().slice(0, 10),
+    creditLimit: row.creditLimit ? Number(row.creditLimit) : undefined,
+    apr: row.apr ? Number(row.apr) : undefined,
+    minimumPayment: row.minimumPayment ? Number(row.minimumPayment) : undefined,
+    dueDay: row.dueDay ?? undefined,
+    originalBalance: row.originalBalance ? Number(row.originalBalance) : undefined,
+  }
+}
+
+export async function GET() {
+  const { userId } = await getRequiredSession()
+  const rows = await db.financialAccount.findMany({ where: { userId }, orderBy: { lastUpdated: 'asc' } })
+  return NextResponse.json(rows.map(toDTO))
+}
+
+export async function POST(req: Request) {
+  const { userId } = await getRequiredSession()
+  const parsed = createAccountSchema.safeParse(await req.json())
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  }
+  const row = await db.financialAccount.create({ data: { ...parsed.data, userId } })
+  return NextResponse.json(toDTO(row), { status: 201 })
+}

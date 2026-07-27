@@ -3,10 +3,10 @@ import { Suspense, useEffect, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Archive, ArchiveRestore, Landmark, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStore } from '@/stores/useStore'
+import { useAccounts, useUpdateAccount, useDeleteAccount } from '@/hooks/queries/useAccounts'
 import { PageHeader } from '@/components/shared/Misc'
 import { Money } from '@/components/shared/Money'
-import { EmptyState } from '@/components/shared/States'
+import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -35,7 +35,9 @@ const typeLabels: Record<AccountType, string> = {
 }
 
 function AccountsInner() {
-  const { accounts, updateAccount, deleteAccount } = useStore()
+  const { data: accounts = [], isLoading } = useAccounts()
+  const updateAccountMut = useUpdateAccount()
+  const deleteAccountMut = useDeleteAccount()
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
@@ -58,6 +60,15 @@ function AccountsInner() {
   const nw = netWorth(accounts)
   const active = accounts.filter((a) => !a.archived)
   const archived = accounts.filter((a) => a.archived)
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader title="Accounts" description="Every place your money lives — and what you owe." />
+        <LoadingSkeleton rows={4} className="mt-6" />
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -117,11 +128,11 @@ function AccountsInner() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => { setEditing(a); setDialogOpen(true) }}><Pencil className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setAdjusting(a); setAdjustValue(String(Math.abs(a.balance))) }}>Adjust balance</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { updateAccount(a.id, { includeInNetWorth: !a.includeInNetWorth }); toast.success(a.includeInNetWorth ? 'Excluded from net worth.' : 'Included in net worth.') }}>
+                              <DropdownMenuItem onClick={() => { updateAccountMut.mutate({ id: a.id, patch: { includeInNetWorth: !a.includeInNetWorth } }); toast.success(a.includeInNetWorth ? 'Excluded from net worth.' : 'Included in net worth.') }}>
                                 {a.includeInNetWorth ? 'Exclude from' : 'Include in'} net worth
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => { updateAccount(a.id, { archived: true }); toast.success('Account archived.') }}>
+                              <DropdownMenuItem onClick={() => { updateAccountMut.mutate({ id: a.id, patch: { archived: true } }); toast.success('Account archived.') }}>
                                 <Archive className="mr-2 h-4 w-4" />Archive
                               </DropdownMenuItem>
                               <DropdownMenuItem className="text-destructive" onClick={() => setDeleting(a)}>
@@ -157,7 +168,7 @@ function AccountsInner() {
                     <Archive className="h-4 w-4 text-muted-foreground" />
                     <span className="flex-1 text-sm">{a.name}</span>
                     <Money value={a.balance} className="text-sm text-muted-foreground" />
-                    <Button variant="ghost" size="sm" onClick={() => updateAccount(a.id, { archived: false })}>
+                    <Button variant="ghost" size="sm" onClick={() => updateAccountMut.mutate({ id: a.id, patch: { archived: false } })}>
                       <ArchiveRestore className="mr-1 h-3.5 w-3.5" />Restore
                     </Button>
                   </div>
@@ -180,7 +191,7 @@ function AccountsInner() {
             <Button className="w-full" onClick={() => {
               if (adjusting) {
                 const sign = adjusting.balance < 0 ? -1 : 1
-                updateAccount(adjusting.id, { balance: round2(Math.abs(Number(adjustValue)) * sign) })
+                updateAccountMut.mutate({ id: adjusting.id, patch: { balance: round2(Math.abs(Number(adjustValue)) * sign) } })
                 toast.success('Balance updated.')
               }
               setAdjusting(null)
@@ -200,7 +211,7 @@ function AccountsInner() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => { if (deleting) { deleteAccount(deleting.id); toast.success('Account deleted.') } }}>
+              onClick={() => { if (deleting) { deleteAccountMut.mutate(deleting.id); toast.success('Account deleted.') } }}>
               Delete account
             </AlertDialogAction>
           </AlertDialogFooter>

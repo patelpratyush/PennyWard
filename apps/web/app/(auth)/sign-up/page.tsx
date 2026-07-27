@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -12,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { useStore } from '@/stores/useStore'
 import { cn } from '@/lib/utils'
 
 const schema = z.object({
@@ -44,8 +44,6 @@ function strength(pw: string): { score: number; label: string; className: string
 
 export default function SignUp() {
   const router = useRouter()
-  const signIn = useStore((s) => s.signIn)
-  const updateProfile = useStore((s) => s.updateProfile)
   const [show, setShow] = useState(false)
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<Values>({
     resolver: zodResolver(schema),
@@ -55,9 +53,22 @@ export default function SignUp() {
   const s = useMemo(() => strength(pw), [pw])
 
   const onSubmit = async (v: Values) => {
-    await new Promise((r) => setTimeout(r, 900))
-    updateProfile({ fullName: v.fullName, email: v.email, preferredName: v.fullName.split(' ')[0] })
-    signIn(v.email)
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: v.email, password: v.password, name: v.fullName }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      toast.error(typeof body.error === 'string' ? body.error : 'Could not create account.')
+      return
+    }
+    const result = await signIn('credentials', { email: v.email, password: v.password, redirect: false })
+    if (result?.error) {
+      toast.error('Account created, but sign-in failed. Try signing in manually.')
+      router.push('/sign-in')
+      return
+    }
     toast.success('Account created. Let’s set up your finances.')
     router.push('/onboarding')
   }

@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { useStore } from '@/stores/useStore'
+import { useCreateAccount, useUpdateAccount } from '@/hooks/queries/useAccounts'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -22,7 +22,8 @@ export function AccountDialog({ open, onOpenChange, editing }: {
   onOpenChange: (v: boolean) => void
   editing?: Account | null
 }) {
-  const { addAccount, updateAccount } = useStore()
+  const createAccount = useCreateAccount()
+  const updateAccountMut = useUpdateAccount()
   const [form, setForm] = useState({
     name: '', institution: '', type: 'checking' as AccountType, balance: '',
     creditLimit: '', apr: '', minimumPayment: '', includeInNetWorth: true,
@@ -60,10 +61,10 @@ export function AccountDialog({ open, onOpenChange, editing }: {
       minimumPayment: form.minimumPayment ? Number(form.minimumPayment) : undefined,
     }
     if (editing) {
-      updateAccount(editing.id, payload)
+      updateAccountMut.mutate({ id: editing.id, patch: payload })
       toast.success('Account updated.')
     } else {
-      addAccount(payload)
+      createAccount.mutate(payload)
       toast.success('Account added.')
     }
     onOpenChange(false)
