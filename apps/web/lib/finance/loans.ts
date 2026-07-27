@@ -46,8 +46,11 @@ export function buildAmortization(opts: AmortizationOptions): AmortizationRow[] 
     n += 1
     const interest = round2(balance * r)
     let scheduledPayment = scheduled
-    // Final scheduled payment should not overshoot balance + interest
-    if (scheduledPayment > balance + interest) scheduledPayment = round2(balance + interest)
+    // Final scheduled payment should not overshoot balance + interest, and the
+    // final term payment (when not extended by extra/lump payments) must fully
+    // retire the balance rather than leaving a cent-level rounding residual.
+    const isFinalScheduledTerm = n === termMonths && extraMonthly <= 0 && oneTimePayment <= 0
+    if (scheduledPayment > balance + interest || isFinalScheduledTerm) scheduledPayment = round2(balance + interest)
     let principalPart = round2(scheduledPayment - interest)
     let extra = round2(extraMonthly + (n === oneTimePaymentMonth ? oneTimePayment : 0))
     if (principalPart + extra > balance) extra = round2(balance - principalPart)
