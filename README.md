@@ -1,73 +1,85 @@
-# React + TypeScript + Vite
+# Pennyward
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Pennyward is a personal finance app: accounts, transactions, budgets, and debt
+payoff planning, backed by a real Postgres database.
 
-Currently, two official plugins are available:
+The app lives entirely in `apps/web` — a Next.js 16 (App Router) application.
+There is no other frontend in this repo.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Prerequisites
 
-## React Compiler
+- Node.js 20+
+- A Postgres database (e.g. a free [Neon](https://neon.tech) or
+  [Supabase](https://supabase.com) project)
+- A Google OAuth client, if you want to test Google sign-in
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Getting started
 
-## Expanding the ESLint configuration
+1. Install dependencies from the repo root:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+   ```bash
+   npm install
+   ```
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+2. Copy the environment template and fill in your own values:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+   ```bash
+   cp apps/web/.env.example apps/web/.env.local
+   ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+   Fill in `apps/web/.env.local`:
+
+   - `DATABASE_URL` — your Postgres connection string
+   - `AUTH_SECRET` — any random string (e.g. `openssl rand -base64 32`)
+   - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` — Google OAuth credentials
+     (optional; only needed for "Sign in with Google")
+   - `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` — optional, used for
+     rate limiting; the app runs fine without them (rate limiting is skipped)
+
+3. Apply migrations and seed the system categories:
+
+   ```bash
+   npx prisma migrate deploy --schema=apps/web/prisma/schema.prisma
+   npx prisma db seed --schema=apps/web/prisma/schema.prisma
+   ```
+
+   (equivalently: `cd apps/web && npx prisma migrate deploy && npx prisma db seed`)
+
+4. Start the dev server:
+
+   ```bash
+   npm run dev
+   ```
+
+   The app runs at http://localhost:3000. Sign up for a new account from
+   `/sign-up` to get started — there's no pre-seeded demo user.
+
+## Scripts
+
+Run from the repo root; each delegates to the `apps/web` workspace:
+
+```bash
+npm run dev     # next dev
+npm run build   # next build
+npm run lint    # eslint
+npm run test    # vitest run
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- `apps/web/app` — Next.js App Router routes (marketing pages, auth, onboarding,
+  and the authenticated `/app/*` product)
+- `apps/web/app/api` — API route handlers (accounts, categories, transactions,
+  CSV import, categorization rules, budgets, debts, payoff scenarios)
+- `apps/web/lib` — finance engine, validation schemas, session/auth helpers
+- `apps/web/prisma` — Prisma schema, migrations, and seed script
+- `apps/web/test` — Vitest test suite (finance engine, API routes, security)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Scope note
+
+Accounts, categories, transactions, budgets, and debts/payoff planning are
+backed by the real database via Prisma. Goals, bills, watchlists,
+notifications, and stock quotes/scenarios are out of scope for the current
+backend migration and still read/write to browser `localStorage` via the
+legacy Zustand store (`apps/web/stores/useStore.ts`). This is expected, not a
+bug — those entities are planned for a future migration.
