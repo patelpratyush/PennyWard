@@ -492,7 +492,9 @@ function TransactionsInner() {
       {total > 0 && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground tnum">
-            Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
+            {filtered.length !== items.length
+              ? <>Showing {filtered.length} of {total} (page {page} of {totalPages})</>
+              : <>Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}</>}
           </p>
           <div className="flex items-center gap-2">
             <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
