@@ -85,7 +85,7 @@ const SAMPLE_CSV = `Date,Description,Amount,Category
 
 export default function TransactionsImport() {
   const router = useRouter()
-  const { accounts, categories, transactions, addTransactions, pushNotification } = useStore()
+  const { accounts, transactions, pushNotification } = useStore()
   const [step, setStep] = useState(1)
   const [fileName, setFileName] = useState('')
   const [headers, setHeaders] = useState<string[]>([])
@@ -95,7 +95,8 @@ export default function TransactionsImport() {
     date: '', postedDate: '', merchant: '', description: '', amount: '', debit: '', credit: '', category: '', notes: '', externalId: '',
   })
   const [rows, setRows] = useState<ParsedRow[]>([])
-  const [result, setResult] = useState<{ imported: number; skipped: number; errors: number } | null>(null)
+  const [result, setResult] = useState<{ imported: number; duplicates: number; review: string[]; clientErrors: number } | null>(null)
+  const [importing, setImporting] = useState(false)
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -182,27 +183,41 @@ export default function TransactionsImport() {
   const totalIncome = round2(importable.filter((r) => r.type === 'income').reduce((s, r) => s + r.amount, 0))
   const totalExpenses = round2(importable.filter((r) => r.type === 'expense').reduce((s, r) => s + r.amount, 0))
 
-  const doImport = () => {
-    const catByName = new Map(categories.map((c) => [c.name.toLowerCase(), c.id]))
-    const payloads = importable.map((r) => ({
-      accountId,
-      type: r.type,
-      amount: r.amount,
-      merchant: r.merchant,
-      description: r.description,
+  const doImport = async () => {
+    // Normalize into the wire shape the /api/imports/csv route expects: a single
+    // signed-amount column and a single payee column, regardless of how the
+    // source CSV split debit/credit or merchant/description.
+    const rowsPayload = importable.map((r) => ({
       date: r.date,
-      categoryId: r.categoryName ? catByName.get(r.categoryName.toLowerCase()) : undefined,
-      tags: ['imported'],
-      notes: r.notes,
-      recurring: false,
-      cleared: true,
-      importSource: 'csv' as const,
+      amount: String(r.type === 'expense' ? -r.amount : r.amount),
+      merchant: r.merchant,
+      notes: r.notes ?? '',
     }))
-    const imported = addTransactions(payloads)
-    const skipped = rows.length - imported
-    setResult({ imported, skipped, errors: invalidRows.length })
-    pushNotification({ type: 'import', title: 'CSV import completed', message: `${imported} transactions were imported from ${fileName}.` })
-    setStep(7)
+    setImporting(true)
+    try {
+      const res = await fetch('/api/imports/csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId,
+          rows: rowsPayload,
+          mapping: { date: 'date', amount: 'amount', payee: 'merchant', notes: 'notes' },
+          dateFormat: 'yyyy-MM-dd',
+        }),
+      })
+      if (!res.ok) {
+        toast.error('Import failed. Please check your data and try again.')
+        return
+      }
+      const body = (await res.json()) as { imported: number; duplicates: number; review: string[] }
+      setResult({ imported: body.imported, duplicates: body.duplicates, review: body.review, clientErrors: invalidRows.length })
+      pushNotification({ type: 'import', title: 'CSV import completed', message: `${body.imported} transactions were imported from ${fileName}.` })
+      setStep(7)
+    } catch {
+      toast.error('Import failed. Please check your connection and try again.')
+    } finally {
+      setImporting(false)
+    }
   }
 
   const exportErrors = () => {
@@ -217,9 +232,9 @@ export default function TransactionsImport() {
     step === 5 ||
     step === 6
 
-  const next = () => {
+  const next = async () => {
     if (step === 3) buildRows()
-    else if (step === 6) doImport()
+    else if (step === 6) await doImport()
     else setStep(step + 1)
   }
 
@@ -482,11 +497,16 @@ export default function TransactionsImport() {
                 </motion.div>
                 <h2 className="mt-4 text-xl font-bold">Import complete</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {result.imported} imported · {result.skipped} skipped · {result.errors} errors
+                  {result.imported} imported · {result.duplicates} duplicates · {result.clientErrors} errors
                 </p>
+                {result.review.length > 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {result.review.length} row{result.review.length === 1 ? '' : 's'} flagged for review during import.
+                  </p>
+                )}
                 <div className="mt-6 flex flex-wrap justify-center gap-2">
                   <Button onClick={() => router.push('/app/transactions')}>View transactions<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-                  {result.errors > 0 && (
+                  {result.clientErrors > 0 && (
                     <Button variant="outline" onClick={exportErrors}><Download className="mr-1.5 h-4 w-4" />Download error report</Button>
                   )}
                   <Button variant="ghost" onClick={() => { setStep(1); setRows([]); setResult(null); setFileName('') }}>Import another file</Button>
@@ -503,8 +523,8 @@ export default function TransactionsImport() {
           <Button variant="ghost" onClick={() => setStep(Math.max(1, step - 1))}>
             <ArrowLeft className="mr-1.5 h-4 w-4" />Back
           </Button>
-          <Button onClick={next} disabled={!canNext}>
-            {step === 6 ? `Import ${importable.length} transactions` : 'Continue'}<ArrowRight className="ml-1.5 h-4 w-4" />
+          <Button onClick={next} disabled={!canNext || importing}>
+            {step === 6 ? (importing ? 'Importing…' : `Import ${importable.length} transactions`) : 'Continue'}<ArrowRight className="ml-1.5 h-4 w-4" />
           </Button>
         </div>
       )}
