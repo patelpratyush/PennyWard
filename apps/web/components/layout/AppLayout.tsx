@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { signOut } from 'next-auth/react'
 import {
   Bell, Calculator, Car, ChevronRight, CreditCard, FileBarChart, Goal,
   Home, Landmark, LineChart, ListOrdered, LogOut, Menu, Moon, Plus,
@@ -264,7 +265,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const profile = useStore((s) => s.profile)
-  const signOut = useStore((s) => s.signOut)
   const density = useStore((s) => s.settings.density)
 
   const crumbs = useMemo(() => {
@@ -369,7 +369,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <Badge variant="secondary" className="mr-2 text-[10px]">PRO</Badge>Subscription
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => { signOut(); router.push('/') }}>
+                <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
                   <LogOut className="mr-2 h-4 w-4" />Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>

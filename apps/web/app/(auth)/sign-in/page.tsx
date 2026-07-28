@@ -1,7 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -12,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { useStore } from '@/stores/useStore'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email address.'),
@@ -21,9 +21,17 @@ const schema = z.object({
 })
 type Values = z.infer<typeof schema>
 
-export default function SignIn() {
+export default function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignIn />
+    </Suspense>
+  )
+}
+
+function SignIn() {
   const router = useRouter()
-  const signIn = useStore((s) => s.signIn)
+  const searchParams = useSearchParams()
   const [show, setShow] = useState(false)
   const [serverError, setServerError] = useState('')
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<Values>({
@@ -33,11 +41,15 @@ export default function SignIn() {
 
   const onSubmit = async (v: Values) => {
     setServerError('')
-    await new Promise((r) => setTimeout(r, 800))
-    // Frontend-only mock authentication
-    signIn(v.email)
+    const result = await signIn('credentials', { email: v.email, password: v.password, redirect: false })
+    if (result?.error) {
+      setServerError('Invalid email or password.')
+      toast.error('Invalid email or password.')
+      return
+    }
     toast.success('Welcome back to FinPilot.')
-    router.push('/app/dashboard')
+    const callbackUrl = searchParams.get('callbackUrl')
+    router.push(callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : '/app/dashboard')
   }
 
   return (
@@ -82,9 +94,6 @@ export default function SignIn() {
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </Button>
-        <p className="text-center text-xs text-muted-foreground">
-          Demo: any valid email and an 8+ character password will sign you in.
-        </p>
       </form>
     </AuthShell>
   )
