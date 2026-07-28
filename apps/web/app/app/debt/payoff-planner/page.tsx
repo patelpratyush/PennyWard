@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -9,12 +9,13 @@ import {
 import { format, parseISO } from 'date-fns'
 import { ArrowLeft, ArrowRight, Check, PartyPopper, Snowflake, TrendingDown } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStore } from '@/stores/useStore'
+import { useDebts, useSavePayoffScenario } from '@/hooks/queries/useDebts'
 import { PageHeader } from '@/components/shared/Misc'
-import { EmptyState } from '@/components/shared/States'
+import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -33,14 +34,25 @@ const strategyInfo: { id: PayoffStrategy; name: string; desc: string }[] = [
 
 export default function PayoffPlanner() {
   const router = useRouter()
-  const { debts, addPayoffPlan, pushNotification } = useStore()
-  const [step, setStep] = useState(debts.length ? 1 : 0)
-  const [selected, setSelected] = useState<string[]>(debts.map((d) => d.id))
+  const { data: debts = [], isLoading } = useDebts()
+  const savePayoffScenario = useSavePayoffScenario()
+  const [step, setStep] = useState(0)
+  const [selected, setSelected] = useState<string[]>([])
   const [strategy, setStrategy] = useState<PayoffStrategy>('avalanche')
   const [extraMonthly, setExtraMonthly] = useState(200)
   const [oneTime, setOneTime] = useState(0)
-  const [customOrder, setCustomOrder] = useState<string[]>(debts.map((d) => d.id))
+  const [customOrder, setCustomOrder] = useState<string[]>([])
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [scenarioName, setScenarioName] = useState('')
   const startMonth = format(new Date(), 'yyyy-MM')
+
+  useEffect(() => {
+    if (!isLoading && debts.length && selected.length === 0) {
+      setSelected(debts.map((d) => d.id))
+      setCustomOrder(debts.map((d) => d.id))
+      setStep(1)
+    }
+  }, [isLoading, debts, selected.length])
 
   const chosen = useMemo(() => debts.filter((d) => selected.includes(d.id)), [debts, selected])
   const comparison = useMemo(
@@ -64,14 +76,33 @@ export default function PayoffPlanner() {
     return rows
   }, [comparison])
 
+  const openSaveDialog = () => {
+    setScenarioName(`${strategyInfo.find((s) => s.id === strategy)?.name} plan`)
+    setSaveDialogOpen(true)
+  }
+
   const savePlan = () => {
-    addPayoffPlan({
-      name: `${strategyInfo.find((s) => s.id === strategy)?.name} plan`,
-      strategy, debtIds: selected, extraMonthly, oneTimePayment: oneTime, startMonth, customOrder,
-    })
-    pushNotification({ type: 'debt', title: 'Payoff plan saved', message: `Your ${strategy} plan targets ${active ? formatDate(active.debtFreeDate, 'MMMM yyyy') : ''} as the debt-free date.` })
-    toast.success('Payoff plan saved.')
-    router.push('/app/debt')
+    if (!scenarioName.trim()) return
+    savePayoffScenario.mutate(
+      { name: scenarioName.trim(), strategy, extraMonthly, oneTimePayment: oneTime, startMonth, customOrder },
+      {
+        onSuccess: () => {
+          toast.success('Payoff plan saved.')
+          setSaveDialogOpen(false)
+          router.push('/app/debt')
+        },
+        onError: () => toast.error('Could not save this payoff plan.'),
+      },
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader title="Debt payoff planner" description="Snowball, avalanche, or your own order — with real dates and dollars." />
+        <LoadingSkeleton rows={4} className="mt-6" />
+      </div>
+    )
   }
 
   if (step === 0 || debts.length === 0) {
@@ -358,9 +389,24 @@ export default function PayoffPlanner() {
             Continue<ArrowRight className="ml-1.5 h-4 w-4" />
           </Button>
         ) : (
-          <Button onClick={savePlan}>Save this plan<Check className="ml-1.5 h-4 w-4" /></Button>
+          <Button onClick={openSaveDialog}>Save this plan<Check className="ml-1.5 h-4 w-4" /></Button>
         )}
       </div>
+
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Name this payoff plan</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="scenario-name">Plan name</Label>
+              <Input id="scenario-name" value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} placeholder="e.g. Avalanche + $200/mo" />
+            </div>
+            <Button className="w-full" disabled={!scenarioName.trim() || savePayoffScenario.isPending} onClick={savePlan}>
+              Save plan
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

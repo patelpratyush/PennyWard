@@ -5,9 +5,9 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Calculator, CreditCard, GitCompareArrows, MoreHorizontal, Pencil, Plus, Trash2, TrendingDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
-import { useStore } from '@/stores/useStore'
+import { useDebts, useCreateDebt, useUpdateDebt, useDeleteDebt } from '@/hooks/queries/useDebts'
 import { PageHeader } from '@/components/shared/Misc'
-import { EmptyState } from '@/components/shared/States'
+import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -34,7 +34,8 @@ export function DebtDialog({ open, onOpenChange, editing }: {
   onOpenChange: (v: boolean) => void
   editing?: Debt | null
 }) {
-  const { addDebt, updateDebt } = useStore()
+  const createDebt = useCreateDebt()
+  const updateDebtMut = useUpdateDebt()
   const [form, setForm] = useState({
     name: '', lender: '', type: 'credit_card' as DebtType, balance: '', originalBalance: '',
     apr: '', minimumPayment: '', dueDay: '1', creditLimit: '',
@@ -63,11 +64,15 @@ export function DebtDialog({ open, onOpenChange, editing }: {
       creditLimit: form.creditLimit ? Number(form.creditLimit) : undefined,
     }
     if (editing) {
-      updateDebt(editing.id, payload)
-      toast.success('Debt updated.')
+      updateDebtMut.mutate({ id: editing.id, patch: payload }, {
+        onSuccess: () => toast.success('Debt updated.'),
+        onError: () => toast.error('Could not update this debt.'),
+      })
     } else {
-      addDebt(payload)
-      toast.success('Debt added.')
+      createDebt.mutate(payload, {
+        onSuccess: () => toast.success('Debt added.'),
+        onError: () => toast.error('Could not add this debt.'),
+      })
     }
     onOpenChange(false)
   }
@@ -131,7 +136,9 @@ export function DebtDialog({ open, onOpenChange, editing }: {
 }
 
 function DebtPageInner() {
-  const { debts, updateDebt, deleteDebt } = useStore()
+  const { data: debts = [], isLoading } = useDebts()
+  const updateDebtMut = useUpdateDebt()
+  const deleteDebtMut = useDeleteDebt()
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const router = useRouter()
@@ -158,6 +165,15 @@ function DebtPageInner() {
     const plan = debts.length ? simulatePayoff({ debts, strategy: 'minimum', extraMonthly: 0, oneTimePayment: 0, startMonth: month }) : null
     return { total, minimums, weightedApr, plan }
   }, [debts, month])
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader title="Debt & Loans" description="Every balance, every rate, and the plan to zero." />
+        <LoadingSkeleton rows={4} className="mt-6" />
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -222,7 +238,12 @@ function DebtPageInner() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => { setPaying(d); setPayAmount(String(d.minimumPayment)) }}>Record payment</DropdownMenuItem>
                         <DropdownMenuItem onClick={() => { setEditing(d); setDialogOpen(true) }}><Pencil className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive" onClick={() => { deleteDebt(d.id); toast.success('Debt removed.') }}>
+                        <DropdownMenuItem className="text-destructive" onClick={() => {
+                          deleteDebtMut.mutate(d.id, {
+                            onSuccess: () => toast.success('Debt removed.'),
+                            onError: () => toast.error('Could not remove this debt.'),
+                          })
+                        }}>
                           <Trash2 className="mr-2 h-4 w-4" />Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -268,8 +289,11 @@ function DebtPageInner() {
             <Input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} aria-label="Payment amount" />
             <Button className="w-full" disabled={!(Number(payAmount) > 0)} onClick={() => {
               if (paying) {
-                updateDebt(paying.id, { balance: round2(Math.max(0, paying.balance - Number(payAmount))) })
-                toast.success(`Payment of ${formatCurrency(Number(payAmount))} recorded.`)
+                const amount = Number(payAmount)
+                updateDebtMut.mutate({ id: paying.id, patch: { balance: round2(Math.max(0, paying.balance - amount)) } }, {
+                  onSuccess: () => toast.success(`Payment of ${formatCurrency(amount)} recorded.`),
+                  onError: () => toast.error('Could not record this payment.'),
+                })
               }
               setPaying(null)
             }}>Record payment</Button>
