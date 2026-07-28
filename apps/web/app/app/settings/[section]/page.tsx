@@ -9,6 +9,7 @@ import {
 import { toast } from 'sonner'
 import { exportState, useStore } from '@/stores/useStore'
 import { useCategories, useCreateCategory, useUpdateCategory } from '@/hooks/queries/useCategories'
+import { useCategorizationRules, useCreateCategorizationRule, useDeleteCategorizationRule } from '@/hooks/queries/useCategorizationRules'
 import { PageHeader } from '@/components/shared/Misc'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -285,6 +286,88 @@ function CategoriesSection() {
   )
 }
 
+function RulesSection() {
+  const categories = useCategories().data ?? []
+  const rules = useCategorizationRules().data ?? []
+  const createRule = useCreateCategorizationRule()
+  const deleteRule = useDeleteCategorizationRule()
+  const [form, setForm] = useState({ matchType: 'contains' as 'contains' | 'equals' | 'regex', pattern: '', categoryId: '', priority: 0 })
+  const categoryName = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Unknown'
+  return (
+    <Card className="shadow-card">
+      <CardHeader><CardTitle className="text-base">Categorization rules</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <ul className="space-y-1">
+          {rules.map((r) => (
+            <li key={r.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm">
+              <Badge variant="secondary" className="text-[10px] uppercase">{r.matchType}</Badge>
+              <span className="flex-1 truncate">{r.pattern}</span>
+              <span className="text-xs text-muted-foreground">{categoryName(r.categoryId)}</span>
+              <span className="text-xs text-muted-foreground">priority {r.priority}</span>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => {
+                deleteRule.mutate(r.id, {
+                  onSuccess: () => toast.success('Rule deleted.'),
+                  onError: () => toast.error('Could not delete this rule.'),
+                })
+              }}>
+                Delete
+              </Button>
+            </li>
+          ))}
+          {rules.length === 0 && <p className="text-xs text-muted-foreground">No categorization rules yet.</p>}
+        </ul>
+        <div className="grid gap-3 sm:grid-cols-4 sm:items-end">
+          <div className="space-y-1.5">
+            <Label>Match type</Label>
+            <Select value={form.matchType} onValueChange={(v) => setForm({ ...form, matchType: v as typeof form.matchType })}>
+              <SelectTrigger aria-label="Match type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="contains">Contains</SelectItem>
+                <SelectItem value="equals">Equals</SelectItem>
+                <SelectItem value="regex">Regex</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="rule-pattern">Pattern</Label>
+            <Input id="rule-pattern" value={form.pattern} onChange={(e) => setForm({ ...form, pattern: e.target.value })} placeholder="e.g. starbucks" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Category</Label>
+            <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
+              <SelectTrigger aria-label="Category"><SelectValue placeholder="Select category" /></SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="rule-priority">Priority</Label>
+            <Input id="rule-priority" type="number" value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })} />
+          </div>
+        </div>
+        <Button
+          disabled={form.pattern.trim().length < 1 || !form.categoryId}
+          onClick={() => {
+            createRule.mutate(
+              { matchType: form.matchType, pattern: form.pattern.trim(), categoryId: form.categoryId, priority: form.priority },
+              {
+                onSuccess: () => {
+                  toast.success('Rule added.')
+                  setForm({ matchType: 'contains', pattern: '', categoryId: '', priority: 0 })
+                },
+                onError: () => toast.error('Could not add this rule.'),
+              },
+            )
+          }}
+        >
+          Add rule
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 function SecuritySection() {
   const sessions = [
     { device: 'MacBook Pro — Chrome', location: 'New Jersey, US', current: true },
@@ -482,7 +565,12 @@ export default function Settings() {
           {section === 'profile' && <ProfileSection />}
           {section === 'appearance' && <AppearanceSection />}
           {section === 'notifications' && <NotificationsSection />}
-          {section === 'categories' && <CategoriesSection />}
+          {section === 'categories' && (
+            <div className="space-y-4">
+              <CategoriesSection />
+              <RulesSection />
+            </div>
+          )}
           {section === 'security' && <SecuritySection />}
           {section === 'data' && <DataSection />}
           {section === 'subscription' && <SubscriptionSection />}
