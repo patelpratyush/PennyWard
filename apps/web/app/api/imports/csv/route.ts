@@ -6,6 +6,7 @@ import { getRequiredSession } from '@/lib/session'
 import { normalizePayee } from '@/lib/payeeNormalize'
 import { importHash } from '@/lib/importHash'
 import { round2 } from '@/lib/format'
+import { importRateLimit, checkRateLimit } from '@/lib/rateLimit'
 
 const schema = z.object({
   accountId: z.string(),
@@ -16,6 +17,9 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   const { userId } = await getRequiredSession()
+  const success = await checkRateLimit(importRateLimit, userId)
+  if (!success) return NextResponse.json({ error: 'Too many attempts, try again later' }, { status: 429 })
+
   const parsed = schema.safeParse(await req.json())
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   const { accountId, rows, mapping, dateFormat } = parsed.data
