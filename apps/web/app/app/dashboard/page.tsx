@@ -5,16 +5,21 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart,
   Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
 } from 'recharts'
-import { addDays, format, isBefore, parseISO } from 'date-fns'
+import { addDays, format, isBefore, parseISO, subMonths } from 'date-fns'
 import {
   ArrowRight, CalendarClock, Eye, EyeOff, Lightbulb, RotateCcw, Settings2,
 } from 'lucide-react'
 import { useStore } from '@/stores/useStore'
+import { useAccounts } from '@/hooks/queries/useAccounts'
+import { useTransactions } from '@/hooks/queries/useTransactions'
+import { useCategories } from '@/hooks/queries/useCategories'
+import { useBudget } from '@/hooks/queries/useBudgets'
+import { useDebts } from '@/hooks/queries/useDebts'
 import { MetricCard } from '@/components/shared/MetricCard'
 import { ChartCard, StatusBadge } from '@/components/shared/Misc'
 import { Money } from '@/components/shared/Money'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
-import { EmptyState } from '@/components/shared/States'
+import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -23,7 +28,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Switch } from '@/components/ui/switch'
 import { budgetStatus, budgetTotals, goalMath, netWorth, spendingByCategory } from '@/lib/finance/budget'
 import { categoryTotals, monthlySummaries, totalsForMonth } from '@/lib/finance/derive'
-import { simulatePayoff } from '@/lib/finance/debt'
+import { compareStrategies } from '@/lib/finance/debt'
 import { formatCurrency, formatDate, formatMonth, round2 } from '@/lib/format'
 import { getQuote } from '@/services/stocks'
 import { cn } from '@/lib/utils'
@@ -63,10 +68,10 @@ const widgetLabels: Record<string, string> = {
 }
 
 export default function Dashboard() {
-  const {
-    profile, accounts, transactions, budgets, categories, debts, goals, bills,
-    watchlists, dashboardWidgets, setDashboardWidgets,
-  } = useStore()
+  // Entities covered by this migration plan (accounts, transactions, budgets, debts,
+  // categories) are read from the real API via React Query. Goals, bills, and
+  // watchlists/stocks are out of scope for this plan and stay on the legacy store.
+  const { profile, goals, bills, watchlists, dashboardWidgets, setDashboardWidgets } = useStore()
   const [range, setRange] = useState('this-month')
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar')
   const [customOpen, setCustomOpen] = useState(false)
@@ -74,7 +79,27 @@ export default function Dashboard() {
   const now = new Date()
   const monthKey = format(now, 'yyyy-MM')
   const prevMonthKey = format(addDays(new Date(now.getFullYear(), now.getMonth(), 0), 0), 'yyyy-MM')
+  const sixMonthsAgo = format(subMonths(now, 5), 'yyyy-MM-01')
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening'
+
+  const accountsQ = useAccounts()
+  const categoriesQ = useCategories()
+  const debtsQ = useDebts()
+  const budgetQ = useBudget(monthKey)
+  // Last six months of activity, used for the cash-flow chart, category donut,
+  // and this-month budget spend. The API caps pageSize at 200.
+  const txQ = useTransactions({ from: sixMonthsAgo, pageSize: 200 })
+  // Small, separately-capped query for the "recent transactions" widget.
+  const recentTxQ = useTransactions({ pageSize: 5 })
+
+  const accounts = accountsQ.data ?? []
+  const categories = categoriesQ.data ?? []
+  const debts = debtsQ.data ?? []
+  const budget = budgetQ.data ?? null
+  const transactions = txQ.data?.items ?? []
+  const recentTransactions = recentTxQ.data?.items ?? []
+
+  const isLoading = accountsQ.isLoading || categoriesQ.isLoading || debtsQ.isLoading || budgetQ.isLoading || txQ.isLoading
 
   const summaries = useMemo(() => monthlySummaries(transactions, 6), [transactions])
   const thisMonth = useMemo(() => totalsForMonth(transactions, monthKey), [transactions, monthKey])
@@ -83,7 +108,6 @@ export default function Dashboard() {
   const totalDebt = useMemo(() => round2(debts.reduce((s, d) => s + d.balance, 0)), [debts])
   const cashTotal = useMemo(() => round2(accounts.filter((a) => ['checking', 'savings', 'cash'].includes(a.type) && !a.archived).reduce((s, a) => s + a.balance, 0)), [accounts])
 
-  const budget = budgets.find((b) => b.month === monthKey)
   const spent = useMemo(() => spendingByCategory(transactions, monthKey), [transactions, monthKey])
   const bt = budget ? budgetTotals(budget, spent) : null
 
@@ -98,7 +122,10 @@ export default function Dashboard() {
     return top
   }, [catTotals, categories])
 
-  const debtPlan = useMemo(() => (debts.length ? simulatePayoff({ debts, strategy: 'avalanche', extraMonthly: 100, oneTimePayment: 0, startMonth: monthKey }) : null), [debts, monthKey])
+  const debtPlan = useMemo(
+    () => (debts.length ? compareStrategies(debts, 100, 0, monthKey).avalanche : null),
+    [debts, monthKey],
+  )
 
   const upcomingBills = useMemo(() => bills
     .filter((b) => !b.isIncome)
@@ -139,6 +166,35 @@ export default function Dashboard() {
 
   const visible = (id: string) => dashboardWidgets.find((w) => w.id === id)?.visible !== false
   const pct = (nowV: number, prevV: number) => (prevV !== 0 ? ((nowV - prevV) / Math.abs(prevV)) * 100 : 0)
+
+  if (isLoading) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight">{greeting}, {profile.preferredName}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Here is your financial overview for {formatMonth(now)}.</p>
+        </div>
+        <LoadingSkeleton rows={6} />
+      </div>
+    )
+  }
+
+  if (accounts.length === 0) {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight">{greeting}, {profile.preferredName}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Here is your financial overview for {formatMonth(now)}.</p>
+        </div>
+        <EmptyState
+          title="Add your first account"
+          description="Connect a checking, savings, or credit card account to see your net worth, budget, and spending come to life."
+          actionLabel="Add account"
+          actionHref="/app/accounts?add=1"
+        />
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -444,7 +500,7 @@ export default function Dashboard() {
           <ChartCard title="Recent transactions" className="lg:col-span-1"
             actions={<Button asChild variant="ghost" size="sm" className="h-8 text-xs"><Link href="/app/transactions">View all<ArrowRight className="ml-1 h-3 w-3" /></Link></Button>}>
             <ul className="divide-y">
-              {transactions.slice(0, 5).map((t) => {
+              {recentTransactions.map((t) => {
                 const cat = categories.find((c) => c.id === t.categoryId)
                 return (
                   <li key={t.id} className="flex items-center gap-3 py-2.5">
