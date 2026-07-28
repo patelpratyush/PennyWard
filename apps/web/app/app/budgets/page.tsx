@@ -9,6 +9,7 @@ import {
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
 import { useCategories } from '@/hooks/queries/useCategories'
+import { useBudget, useUpsertBudget } from '@/hooks/queries/useBudgets'
 import { PageHeader, StatusBadge } from '@/components/shared/Misc'
 import { EmptyState } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
@@ -26,15 +27,12 @@ import { budgetStatus, budgetTotals, spendingByCategory } from '@/lib/finance/bu
 import { monthlySummaries } from '@/lib/finance/derive'
 import { formatCurrency, formatMonth, round2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { Category } from '@/types'
+import type { BudgetEntry, Category } from '@/types'
 
 const EMPTY_CATEGORIES: Category[] = []
 
 export default function Budgets() {
-  const {
-    transactions, budgets, upsertBudget, updateBudgetEntry,
-    addBudgetEntry, removeBudgetEntry, copyBudget,
-  } = useStore()
+  const { transactions } = useStore()
   const categories = useCategories().data ?? EMPTY_CATEGORIES
   const [monthOffset, setMonthOffset] = useState(0)
   const [editingCell, setEditingCell] = useState<string | null>(null)
@@ -52,7 +50,47 @@ export default function Budgets() {
   const month = format(monthDate, 'yyyy-MM')
   const prevMonth = format(addMonths(monthDate, -1), 'yyyy-MM')
 
-  const budget = budgets.find((b) => b.month === month)
+  const budget = useBudget(month).data ?? null
+  const prevBudget = useBudget(prevMonth).data ?? null
+  const upsertMutation = useUpsertBudget()
+
+  const saveBudget = (
+    patch: Partial<{ entries: BudgetEntry[]; expectedIncome: number; savingsTarget: number }>,
+    successMessage?: string,
+  ) => {
+    const payload = {
+      month,
+      entries: patch.entries ?? budget?.entries ?? [],
+      expectedIncome: patch.expectedIncome ?? budget?.expectedIncome ?? 0,
+      savingsTarget: patch.savingsTarget ?? budget?.savingsTarget ?? 0,
+    }
+    upsertMutation.mutate(payload, {
+      onSuccess: () => { if (successMessage) toast.success(successMessage) },
+      onError: () => toast.error('Failed to update budget. Please try again.'),
+    })
+  }
+
+  const updateBudgetEntry = (categoryId: string, budgeted: number, successMessage?: string) => {
+    const entries = budget?.entries.some((e) => e.categoryId === categoryId)
+      ? budget.entries.map((e) => (e.categoryId === categoryId ? { ...e, budgeted } : e))
+      : [...(budget?.entries ?? []), { categoryId, budgeted, rollover: false }]
+    saveBudget({ entries }, successMessage)
+  }
+
+  const addBudgetEntry = updateBudgetEntry
+
+  const removeBudgetEntry = (categoryId: string, successMessage?: string) => {
+    saveBudget({ entries: (budget?.entries ?? []).filter((e) => e.categoryId !== categoryId) }, successMessage)
+  }
+
+  const copyLastMonth = (successMessage: string) => {
+    if (!prevBudget) {
+      toast.error(`No budget found for ${format(parseISO(`${prevMonth}-01`), 'MMMM')}.`)
+      return
+    }
+    saveBudget({ entries: prevBudget.entries, expectedIncome: prevBudget.expectedIncome, savingsTarget: prevBudget.savingsTarget }, successMessage)
+  }
+
   const spent = useMemo(() => spendingByCategory(transactions, month), [transactions, month])
   const prevSpent = useMemo(() => spendingByCategory(transactions, prevMonth), [transactions, prevMonth])
   const summaries = useMemo(() => monthlySummaries(transactions, 6), [transactions])
@@ -71,18 +109,10 @@ export default function Budgets() {
     return groups
   }, [budget, categories])
 
-  const ensureBudget = () => {
-    if (!budget) {
-      copyBudget(prevMonth, month)
-      toast.success(`Copied ${format(parseISO(`${prevMonth}-01`), 'MMMM')} budget forward.`)
-    }
-  }
-
   const commitEdit = (categoryId: string) => {
     const v = Number(editValue)
     if (Number.isFinite(v) && v >= 0) {
-      ensureBudget()
-      updateBudgetEntry(month, categoryId, round2(v))
+      updateBudgetEntry(categoryId, round2(v))
     }
     setEditingCell(null)
   }
@@ -110,11 +140,11 @@ export default function Budgets() {
         description="Give every dollar a job, then track how the month unfolds."
         actions={
           <>
-            <Button variant="outline" onClick={() => { copyBudget(prevMonth, month); toast.success('Copied last month’s budget.') }}>
+            <Button variant="outline" onClick={() => copyLastMonth('Copied last month’s budget.')}>
               <Copy className="mr-1.5 h-4 w-4" />Copy last month
             </Button>
             <Button variant="outline" onClick={() => {
-              if (budget) { upsertBudget(month, { entries: [] }); toast.success('Budget reset — categories cleared.') }
+              if (budget) saveBudget({ entries: [] }, 'Budget reset — categories cleared.')
             }}>
               <RotateCcw className="mr-1.5 h-4 w-4" />Reset
             </Button>
@@ -158,7 +188,7 @@ export default function Budgets() {
             Expected income
             <Input
               type="number" className="h-8 w-28" value={budget?.expectedIncome ?? ''} placeholder="6250"
-              onChange={(e) => upsertBudget(month, { expectedIncome: Number(e.target.value) || 0 })}
+              onChange={(e) => saveBudget({ expectedIncome: Number(e.target.value) || 0 })}
               aria-label="Expected income"
             />
           </label>
@@ -166,7 +196,7 @@ export default function Budgets() {
             Savings target
             <Input
               type="number" className="h-8 w-28" value={budget?.savingsTarget ?? ''} placeholder="800"
-              onChange={(e) => upsertBudget(month, { savingsTarget: Number(e.target.value) || 0 })}
+              onChange={(e) => saveBudget({ savingsTarget: Number(e.target.value) || 0 })}
               aria-label="Savings target"
             />
           </label>
@@ -186,7 +216,7 @@ export default function Budgets() {
             title="Create your first monthly budget to see where your money is going"
             description="Start from last month’s categories or add them one by one."
             actionLabel="Copy last month’s budget"
-            onAction={() => { copyBudget(prevMonth, month); toast.success('Budget created from last month.') }}
+            onAction={() => copyLastMonth('Budget created from last month.')}
           />
         </div>
       ) : (
@@ -268,13 +298,14 @@ export default function Budgets() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => {
-                                  updateBudgetEntry(month, e.categoryId, e.budgeted)
-                                  upsertBudget(month, { entries: budget.entries.map((x) => x.categoryId === e.categoryId ? { ...x, rollover: !x.rollover } : x) })
-                                  toast.success(`Rollover ${e.rollover ? 'disabled' : 'enabled'} for ${cat?.name}.`)
+                                  saveBudget(
+                                    { entries: budget!.entries.map((x) => x.categoryId === e.categoryId ? { ...x, rollover: !x.rollover } : x) },
+                                    `Rollover ${e.rollover ? 'disabled' : 'enabled'} for ${cat?.name}.`,
+                                  )
                                 }}>
                                 {e.rollover ? 'Disable' : 'Enable'} rollover
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={() => { removeBudgetEntry(month, e.categoryId); toast.success('Category removed from budget.') }}>
+                              <DropdownMenuItem className="text-destructive" onClick={() => removeBudgetEntry(e.categoryId, 'Category removed from budget.')}>
                                 Remove from budget
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -306,9 +337,7 @@ export default function Budgets() {
               className="w-full"
               disabled={!addCategoryId || !Number(addAmount)}
               onClick={() => {
-                ensureBudget()
-                addBudgetEntry(month, addCategoryId, round2(Number(addAmount)))
-                toast.success('Category added to budget.')
+                addBudgetEntry(addCategoryId, round2(Number(addAmount)), 'Category added to budget.')
                 setAddOpen(false); setAddCategoryId(''); setAddAmount('')
               }}
             >
@@ -344,9 +373,12 @@ export default function Budgets() {
                   const from = budget?.entries.find((e) => e.categoryId === moveOpen)
                   const to = budget?.entries.find((e) => e.categoryId === moveTarget)
                   if (from && to) {
-                    updateBudgetEntry(month, moveOpen, round2(Math.max(0, from.budgeted - amt)))
-                    updateBudgetEntry(month, moveTarget, round2(to.budgeted + amt))
-                    toast.success(`Moved ${formatCurrency(amt, { decimals: 0 })} between categories.`)
+                    const entries = budget!.entries.map((e) => {
+                      if (e.categoryId === moveOpen) return { ...e, budgeted: round2(Math.max(0, from.budgeted - amt)) }
+                      if (e.categoryId === moveTarget) return { ...e, budgeted: round2(to.budgeted + amt) }
+                      return e
+                    })
+                    saveBudget({ entries }, `Moved ${formatCurrency(amt, { decimals: 0 })} between categories.`)
                   }
                   setMoveOpen(null)
                 }}
@@ -410,16 +442,14 @@ export default function Budgets() {
                     />
                     <Button onClick={() => {
                       const el = document.getElementById('drawer-budget') as HTMLInputElement
-                      ensureBudget()
-                      updateBudgetEntry(month, drawerCat.id, round2(Number(el.value) || 0))
-                      toast.success('Budget updated.')
+                      updateBudgetEntry(drawerCat.id, round2(Number(el.value) || 0), 'Budget updated.')
                     }}>Save</Button>
                   </div>
                   <label className="flex items-center justify-between text-sm">
                     Roll unspent amount into next month
                     <Switch
                       checked={drawerEntry?.rollover ?? false}
-                      onCheckedChange={(v) => upsertBudget(month, { entries: (budget?.entries ?? []).map((x) => x.categoryId === drawerCat.id ? { ...x, rollover: v } : x) })}
+                      onCheckedChange={(v) => saveBudget({ entries: (budget?.entries ?? []).map((x) => x.categoryId === drawerCat.id ? { ...x, rollover: v } : x) })}
                       aria-label="Rollover setting"
                     />
                   </label>
