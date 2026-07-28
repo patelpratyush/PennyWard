@@ -13,6 +13,11 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['test/**/*.test.ts'],
+    // Test files share a single live Postgres test schema and reuse hardcoded
+    // user ids (e.g. 'user_test'). Running files in parallel races their
+    // beforeEach cleanup/seed steps against each other's in-flight requests,
+    // so force sequential file execution for reliability.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

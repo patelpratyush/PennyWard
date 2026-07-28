@@ -7,11 +7,12 @@ import {
   MoreHorizontal, Plus, Search, Trash2, Upload, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStore } from '@/stores/useStore'
+import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useCategories } from '@/hooks/queries/useCategories'
+import { useTransactions, useUpdateTransaction, useBulkDeleteTransactions } from '@/hooks/queries/useTransactions'
 import { TransactionDialog } from '@/components/financial/TransactionDialog'
 import { PageHeader } from '@/components/shared/Misc'
-import { EmptyState } from '@/components/shared/States'
+import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { Button } from '@/components/ui/button'
@@ -32,8 +33,10 @@ import type { Transaction } from '@/types'
 type SortKey = 'date' | 'merchant' | 'amount'
 
 function TransactionsInner() {
-  const { transactions, accounts, deleteTransactions, updateTransaction } = useStore()
+  const { data: accounts = [] } = useAccounts()
   const categories = useCategories().data ?? []
+  const updateTransactionMut = useUpdateTransaction()
+  const bulkDeleteMut = useBulkDeleteTransactions()
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const router = useRouter()
@@ -70,21 +73,32 @@ function TransactionsInner() {
     }
   }, [searchParams, pathname, router])
 
+  // Server-side filters (from, to, categoryId, accountId, q) + pagination drive the API query.
+  // The remaining refinements (type/status/source/amount/tag) and sorting are applied
+  // client-side to the current page's rows, since the API doesn't support them.
+  const queryFilters = useMemo(
+    () => ({
+      from: dateFrom || undefined,
+      to: dateTo || undefined,
+      categoryId: categoryFilter !== 'all' ? categoryFilter : undefined,
+      accountId: accountFilter !== 'all' ? accountFilter : undefined,
+      q: search || undefined,
+      page,
+      pageSize,
+    }),
+    [dateFrom, dateTo, categoryFilter, accountFilter, search, page, pageSize],
+  )
+  const { data, isLoading } = useTransactions(queryFilters)
+  const items = useMemo(() => data?.items ?? [], [data])
+  const total = data?.total ?? 0
+
   const filtered = useMemo(() => {
-    let rows = transactions
-    if (search) {
-      const q = search.toLowerCase()
-      rows = rows.filter((t) => t.merchant.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) || t.notes?.toLowerCase().includes(q))
-    }
-    if (accountFilter !== 'all') rows = rows.filter((t) => t.accountId === accountFilter)
-    if (categoryFilter !== 'all') rows = rows.filter((t) => t.categoryId === categoryFilter || t.splits?.some((s) => s.categoryId === categoryFilter))
+    let rows = items
     if (typeFilter !== 'all') rows = rows.filter((t) => t.type === typeFilter)
     if (statusFilter === 'cleared') rows = rows.filter((t) => t.cleared)
     if (statusFilter === 'pending') rows = rows.filter((t) => !t.cleared)
     if (statusFilter === 'recurring') rows = rows.filter((t) => t.recurring)
     if (sourceFilter !== 'all') rows = rows.filter((t) => t.importSource === sourceFilter)
-    if (dateFrom) rows = rows.filter((t) => t.date >= dateFrom)
-    if (dateTo) rows = rows.filter((t) => t.date <= dateTo)
     if (minAmount) rows = rows.filter((t) => t.amount >= Number(minAmount))
     if (maxAmount) rows = rows.filter((t) => t.amount <= Number(maxAmount))
     if (tagFilter) rows = rows.filter((t) => t.tags.some((tag) => tag.toLowerCase().includes(tagFilter.toLowerCase())))
@@ -94,17 +108,23 @@ function TransactionsInner() {
       if (sortKey === 'merchant') return a.merchant.localeCompare(b.merchant) * dir
       return (a.amount - b.amount) * dir
     })
-  }, [transactions, search, accountFilter, categoryFilter, typeFilter, statusFilter, sourceFilter, dateFrom, dateTo, minAmount, maxAmount, tagFilter, sortKey, sortAsc])
+  }, [items, typeFilter, statusFilter, sourceFilter, minAmount, maxAmount, tagFilter, sortKey, sortAsc])
 
+  // Metrics reflect the currently loaded page (post client-side refinement), not every
+  // transaction matching the filters across all pages — an aggregate endpoint would be
+  // needed for exact totals across the full filtered set.
   const metrics = useMemo(() => {
     const income = round2(filtered.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0))
     const spending = round2(filtered.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0))
     return { income, spending, net: round2(income - spending), count: filtered.length }
   }, [filtered])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize)
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const pageRows = filtered
   const allSelected = pageRows.length > 0 && pageRows.every((t) => selected.includes(t.id))
+
+  const updateTransaction = (id: string, patch: Partial<Transaction>) => updateTransactionMut.mutate({ id, patch })
+  const deleteTransactions = (ids: string[]) => bulkDeleteMut.mutate(ids)
 
   const activeFilterCount = [accountFilter, categoryFilter, typeFilter, statusFilter, sourceFilter, dateFrom, dateTo, minAmount, maxAmount, tagFilter]
     .filter((v) => v && v !== 'all').length
@@ -293,7 +313,7 @@ function TransactionsInner() {
             </DropdownMenu>
             <Button size="sm" variant="outline" onClick={() => {
               for (const id of selected) {
-                const t = transactions.find((x) => x.id === id)
+                const t = items.find((x) => x.id === id)
                 if (t) updateTransaction(id, { tags: [...new Set([...t.tags, 'reviewed'])] })
               }
               toast.success(`Added tag to ${selected.length} transactions.`)
@@ -307,15 +327,17 @@ function TransactionsInner() {
       {/* Table (desktop) / cards (mobile) */}
       <Card className="mt-4 shadow-card">
         <CardContent className="p-0">
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <LoadingSkeleton rows={5} className="p-6" />
+          ) : filtered.length === 0 ? (
             <div className="p-6">
               <EmptyState
-                title={transactions.length === 0 ? 'No transactions yet' : 'Nothing matches your filters'}
-                description={transactions.length === 0
+                title={total === 0 ? 'No transactions yet' : 'Nothing matches your filters'}
+                description={total === 0
                   ? 'Add your first transaction or import a CSV file to begin tracking spending.'
                   : 'Try widening the date range or clearing some filters.'}
-                actionLabel={transactions.length === 0 ? 'Add transaction' : undefined}
-                onAction={transactions.length === 0 ? () => setDialogOpen(true) : undefined}
+                actionLabel={total === 0 ? 'Add transaction' : undefined}
+                onAction={total === 0 ? () => setDialogOpen(true) : undefined}
               />
             </div>
           ) : (
@@ -467,10 +489,10 @@ function TransactionsInner() {
       </Card>
 
       {/* Pagination */}
-      {filtered.length > 0 && (
+      {total > 0 && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground tnum">
-            Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}
+            Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
           </p>
           <div className="flex items-center gap-2">
             <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>

@@ -5,7 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { Plus, Trash2 } from 'lucide-react'
-import { useStore } from '@/stores/useStore'
+import { useAccounts } from '@/hooks/queries/useAccounts'
+import { useCategories } from '@/hooks/queries/useCategories'
+import { useCreateTransaction, useUpdateTransaction } from '@/hooks/queries/useTransactions'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -41,7 +43,10 @@ export function TransactionDialog({ open, onOpenChange, editing }: {
   onOpenChange: (v: boolean) => void
   editing?: Transaction | null
 }) {
-  const { accounts, categories, addTransaction, updateTransaction } = useStore()
+  const { data: accounts = [] } = useAccounts()
+  const { data: categories = [] } = useCategories()
+  const createTransactionMut = useCreateTransaction()
+  const updateTransactionMut = useUpdateTransaction()
   const [splits, setSplits] = useState<SplitRow[]>([])
   const [splitMode, setSplitMode] = useState(false)
 
@@ -91,34 +96,30 @@ export function TransactionDialog({ open, onOpenChange, editing }: {
 
   const onSubmit = async (v: Values) => {
     if (splitMode && splitError) return
-    await new Promise((r) => setTimeout(r, 300))
     const payload = {
+      accountId: v.accountId,
+      categoryId: splitMode ? undefined : v.categoryId || undefined,
       type: v.type,
       amount: round2(v.amount),
       merchant: v.merchant,
-      description: v.description || undefined,
       date: v.date,
-      postedDate: v.postedDate || undefined,
-      accountId: v.accountId,
-      categoryId: splitMode ? undefined : v.categoryId || undefined,
-      tags: v.tags ? v.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
       notes: v.notes || undefined,
+      tags: v.tags ? v.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
       recurring: v.recurring,
       cleared: v.cleared,
-      importSource: 'manual' as const,
-      transferAccountId: v.type === 'transfer' ? v.transferAccountId : undefined,
-      splits: splitMode && splits.length
-        ? splits.map((s) => ({ id: crypto.randomUUID?.() ?? String(Math.random()), categoryId: s.categoryId, amount: round2(s.amount) }))
-        : undefined,
     }
-    if (editing) {
-      updateTransaction(editing.id, payload)
-      toast.success('Transaction updated.')
-    } else {
-      addTransaction(payload)
-      toast.success(v.type === 'transfer' ? 'Transfer recorded — not counted as income or spending.' : 'Transaction added.')
+    try {
+      if (editing) {
+        await updateTransactionMut.mutateAsync({ id: editing.id, patch: payload })
+        toast.success('Transaction updated.')
+      } else {
+        await createTransactionMut.mutateAsync(payload)
+        toast.success(v.type === 'transfer' ? 'Transfer recorded — not counted as income or spending.' : 'Transaction added.')
+      }
+      onOpenChange(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong.')
     }
-    onOpenChange(false)
   }
 
   return (
