@@ -1,5 +1,6 @@
 'use client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchJSON } from '@/lib/fetchJSON'
 
 export type CategorizationRule = {
   id: string
@@ -15,12 +16,6 @@ type CreateCategorizationRuleInput = {
   pattern: string
   categoryId: string
   priority?: number
-}
-
-async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...init })
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Request failed: ${res.status}`)
-  return res.json()
 }
 
 export function useCategorizationRules() {

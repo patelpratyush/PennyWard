@@ -1,14 +1,9 @@
 'use client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchJSON } from '@/lib/fetchJSON'
 import type { Account } from '@/types'
 
 type CreateAccountInput = Omit<Account, 'id' | 'lastUpdated'>
-
-async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...init })
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Request failed: ${res.status}`)
-  return res.json()
-}
 
 export function useAccounts() {
   return useQuery({ queryKey: ['accounts'], queryFn: () => fetchJSON<Account[]>('/api/accounts') })

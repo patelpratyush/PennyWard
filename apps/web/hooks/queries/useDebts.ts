@@ -1,5 +1,6 @@
 'use client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchJSON } from '@/lib/fetchJSON'
 import type { Debt, PayoffStrategy } from '@/types'
 
 type CreateDebtInput = Omit<Debt, 'id'>
@@ -21,12 +22,6 @@ type SavePayoffScenarioInput = {
   oneTimePayment: number
   startMonth: string
   customOrder?: string[]
-}
-
-async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...init })
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Request failed: ${res.status}`)
-  return res.json()
 }
 
 export function useDebts() {

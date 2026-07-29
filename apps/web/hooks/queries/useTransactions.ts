@@ -1,5 +1,6 @@
 'use client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchJSON } from '@/lib/fetchJSON'
 import type { Transaction } from '@/types'
 
 export interface TransactionFilters {
@@ -13,12 +14,6 @@ export interface TransactionFilters {
 }
 
 type CreateTransactionInput = Omit<Transaction, 'id' | 'createdAt'>
-
-async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...init })
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Request failed: ${res.status}`)
-  return res.json()
-}
 
 function toSearchParams(filters: TransactionFilters): string {
   const params = new URLSearchParams()

@@ -1,14 +1,9 @@
 'use client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchJSON } from '@/lib/fetchJSON'
 import type { Category } from '@/types'
 
 type CreateCategoryInput = Omit<Category, 'id' | 'archived'> & { archived?: boolean }
-
-async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...init })
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Request failed: ${res.status}`)
-  return res.json()
-}
 
 export function useCategories() {
   return useQuery({ queryKey: ['categories'], queryFn: () => fetchJSON<Category[]>('/api/categories') })

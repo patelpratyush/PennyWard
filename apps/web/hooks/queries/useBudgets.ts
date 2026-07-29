@@ -1,5 +1,6 @@
 'use client'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { fetchJSON } from '@/lib/fetchJSON'
 import type { Budget } from '@/types'
 
 type UpsertBudgetInput = {
@@ -7,12 +8,6 @@ type UpsertBudgetInput = {
   entries: { categoryId: string; budgeted: number; rollover: boolean }[]
   expectedIncome: number
   savingsTarget: number
-}
-
-async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...init })
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Request failed: ${res.status}`)
-  return res.json()
 }
 
 export function useBudget(month: string) {
