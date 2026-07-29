@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useAccounts } from '@/hooks/queries/useAccounts'
 import { PageHeader } from '@/components/shared/Misc'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -85,7 +86,12 @@ const SAMPLE_CSV = `Date,Description,Amount,Category
 
 export default function TransactionsImport() {
   const router = useRouter()
-  const { accounts, transactions, pushNotification } = useStore()
+  // Accounts must come from the real accounts API: the /api/imports/csv route
+  // performs a real ownership check against the Postgres FinancialAccount
+  // table, so an id picked from the legacy Zustand sample-data store would
+  // never match a real account and the import would always 404.
+  const { data: accounts = [] } = useAccounts()
+  const { transactions, pushNotification } = useStore()
   const [step, setStep] = useState(1)
   const [fileName, setFileName] = useState('')
   const [headers, setHeaders] = useState<string[]>([])
