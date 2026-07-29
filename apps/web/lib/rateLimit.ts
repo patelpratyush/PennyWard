@@ -9,6 +9,11 @@ const redis = Redis.fromEnv({ retry: false })
 
 export const authRateLimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '1 m') })
 export const importRateLimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, '1 h') })
+// Credentials sign-in has a different abuse profile than registration (much higher
+// legitimate volume from the same user re-typing a forgotten password, but also the
+// actual brute-force/credential-stuffing target) — keyed by the submitted email rather
+// than IP, since next-auth v5's `authorize` callback doesn't cleanly expose request IP.
+export const loginRateLimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '5 m') })
 
 /**
  * Checks a rate limit and fails OPEN (allows the request) if Redis is unreachable
