@@ -9,6 +9,10 @@ import {
   Receipt, Search, Settings, Sun, SunMoon, Upload, User, Wallet, X,
 } from 'lucide-react'
 import { useStore } from '@/stores/useStore'
+import { useAccounts } from '@/hooks/queries/useAccounts'
+import { useTransactions } from '@/hooks/queries/useTransactions'
+import { useDebts } from '@/hooks/queries/useDebts'
+import { useCategories } from '@/hooks/queries/useCategories'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/shared/Logo'
 import { Button } from '@/components/ui/button'
@@ -122,7 +126,19 @@ function NotificationsMenu() {
 
 function GlobalSearch({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const router = useRouter()
-  const { transactions, accounts, debts, goals, bills, categories } = useStore()
+  // Goals and bills are out of migration scope for this plan and stay on the
+  // legacy store. Accounts, transactions, categories, and debts are migrated
+  // entities, so the search index must be built from the real API data —
+  // otherwise Cmd-K surfaces sample/demo entities that don't match what the
+  // rest of the app shows. This is a quick-search assist, not an aggregate
+  // calculation, so a reasonably-sized recent page (not an exhaustive fetch)
+  // is appropriate for transactions.
+  const { goals, bills } = useStore()
+  const { data: accounts = [] } = useAccounts()
+  const { data: transactionsPage } = useTransactions({ pageSize: 50 })
+  const transactions = transactionsPage?.items ?? []
+  const { data: debts = [] } = useDebts()
+  const { data: categories = [] } = useCategories()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
