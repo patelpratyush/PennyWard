@@ -9,7 +9,7 @@ import {
 import { toast } from 'sonner'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { useBudget, useUpsertBudget } from '@/hooks/queries/useBudgets'
-import { useTransactions } from '@/hooks/queries/useTransactions'
+import { useAllTransactions } from '@/hooks/queries/useAllTransactions'
 import { PageHeader, StatusBadge } from '@/components/shared/Misc'
 import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
@@ -68,8 +68,8 @@ export default function Budgets() {
   const todayStr = format(today, 'yyyy-MM-dd')
   const txFrom = sixMonthsAgoStr < viewedRangeStartStr ? sixMonthsAgoStr : viewedRangeStartStr
   const txTo = todayStr > viewedRangeEndStr ? todayStr : viewedRangeEndStr
-  const txQ = useTransactions({ from: txFrom, to: txTo, pageSize: 200 })
-  const transactions = useMemo(() => txQ.data?.items ?? [], [txQ.data])
+  const txQ = useAllTransactions({ from: txFrom, to: txTo })
+  const transactions = useMemo(() => txQ.data ?? [], [txQ.data])
 
   const isLoading = categoriesQ.isLoading || budgetQ.isLoading || prevBudgetQ.isLoading || txQ.isLoading
 

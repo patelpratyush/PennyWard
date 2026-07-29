@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useCategories } from '@/hooks/queries/useCategories'
-import { useTransactions } from '@/hooks/queries/useTransactions'
+import { useAllTransactions } from '@/hooks/queries/useAllTransactions'
 import { useBudget } from '@/hooks/queries/useBudgets'
 import { useDebts } from '@/hooks/queries/useDebts'
 import { PageHeader } from '@/components/shared/Misc'
@@ -66,13 +66,12 @@ export default function Reports() {
   // The API filters accountId/categoryId server-side but not transfer-split
   // category matches (transaction splits aren't modeled in the DB yet), so
   // apply the category filter's split fallback client-side over the returned page.
-  const rangedQ = useTransactions({
+  const rangedQ = useAllTransactions({
     from, to,
     accountId: accountFilter !== 'all' ? accountFilter : undefined,
     categoryId: categoryFilter !== 'all' ? categoryFilter : undefined,
-    pageSize: 200,
   })
-  const ranged = useMemo(() => rangedQ.data?.items ?? [], [rangedQ.data])
+  const ranged = useMemo(() => rangedQ.data ?? [], [rangedQ.data])
 
   // The budget report looks at a specific month (derived from the "to" filter),
   // independent of the ranged transaction filters above, so it needs its own
@@ -80,8 +79,8 @@ export default function Reports() {
   const budgetMonth = to.slice(0, 7)
   const budgetMonthStart = `${budgetMonth}-01`
   const budgetMonthEnd = format(endOfMonth(parseISO(budgetMonthStart)), 'yyyy-MM-dd')
-  const budgetMonthTxQ = useTransactions({ from: budgetMonthStart, to: budgetMonthEnd, pageSize: 200 })
-  const budgetMonthTransactions = useMemo(() => budgetMonthTxQ.data?.items ?? [], [budgetMonthTxQ.data])
+  const budgetMonthTxQ = useAllTransactions({ from: budgetMonthStart, to: budgetMonthEnd })
+  const budgetMonthTransactions = useMemo(() => budgetMonthTxQ.data ?? [], [budgetMonthTxQ.data])
   const budgetQ = useBudget(budgetMonth)
   const budget = budgetQ.data ?? null
 

@@ -7,7 +7,7 @@ import { format, parseISO, subMonths } from 'date-fns'
 import { Archive, ArrowLeft, ArrowDownLeft, ArrowUpRight, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAccounts, useUpdateAccount } from '@/hooks/queries/useAccounts'
-import { useTransactions } from '@/hooks/queries/useTransactions'
+import { useAllTransactions } from '@/hooks/queries/useAllTransactions'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { AccountDialog } from '@/components/financial/AccountDialog'
 import { ChartCard, PageHeader } from '@/components/shared/Misc'
@@ -25,8 +25,8 @@ export default function AccountDetail() {
   const { data: accounts = [], isLoading: accountsLoading } = useAccounts()
   const categoriesQ = useCategories()
   const categories = categoriesQ.data ?? []
-  const txQ = useTransactions({ accountId: id, pageSize: 200 })
-  const transactions = txQ.data?.items ?? []
+  const txQ = useAllTransactions({ accountId: id })
+  const transactions = txQ.data ?? []
   const updateAccountMut = useUpdateAccount()
   const [editOpen, setEditOpen] = useState(false)
   const account = accounts.find((a) => a.id === id)

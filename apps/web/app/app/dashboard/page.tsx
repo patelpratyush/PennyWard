@@ -12,6 +12,7 @@ import {
 import { useStore } from '@/stores/useStore'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useTransactions } from '@/hooks/queries/useTransactions'
+import { useAllTransactions } from '@/hooks/queries/useAllTransactions'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { useBudget } from '@/hooks/queries/useBudgets'
 import { useDebts } from '@/hooks/queries/useDebts'
@@ -87,16 +88,18 @@ export default function Dashboard() {
   const debtsQ = useDebts()
   const budgetQ = useBudget(monthKey)
   // Last six months of activity, used for the cash-flow chart, category donut,
-  // and this-month budget spend. The API caps pageSize at 200.
-  const txQ = useTransactions({ from: sixMonthsAgo, pageSize: 200 })
-  // Small, separately-capped query for the "recent transactions" widget.
+  // and this-month budget spend. This is an aggregate calculation, so it must
+  // fetch the complete set rather than truncating at the API's 200-row page cap.
+  const txQ = useAllTransactions({ from: sixMonthsAgo })
+  // Small, separately-capped query for the "recent transactions" widget — an
+  // intentionally short list, not an aggregate, so the regular paginated hook is fine.
   const recentTxQ = useTransactions({ pageSize: 5 })
 
   const accounts = accountsQ.data ?? []
   const categories = categoriesQ.data ?? []
   const debts = debtsQ.data ?? []
   const budget = budgetQ.data ?? null
-  const transactions = txQ.data?.items ?? []
+  const transactions = txQ.data ?? []
   const recentTransactions = recentTxQ.data?.items ?? []
 
   const isLoading = accountsQ.isLoading || categoriesQ.isLoading || debtsQ.isLoading || budgetQ.isLoading || txQ.isLoading
