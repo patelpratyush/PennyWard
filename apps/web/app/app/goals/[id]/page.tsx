@@ -7,6 +7,7 @@ import { addMonths, format, parseISO } from 'date-fns'
 import { ArrowLeft, Pause, Pencil, Play, Plus, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useAccounts } from '@/hooks/queries/useAccounts'
 import { GoalDialog, goalIcons } from '@/components/financial/GoalDialog'
 import { ChartCard, PageHeader, StatusBadge } from '@/components/shared/Misc'
 import { ErrorState } from '@/components/shared/States'
@@ -24,7 +25,8 @@ import { cn } from '@/lib/utils'
 export default function GoalDetail() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { goals, accounts, updateGoal, addContribution, pushNotification } = useStore()
+  const { goals, updateGoal, addContribution, pushNotification } = useStore()
+  const { data: accounts = [] } = useAccounts()
   const goal = goals.find((g) => g.id === id)
   const [editOpen, setEditOpen] = useState(false)
   const [contribOpen, setContribOpen] = useState(false)

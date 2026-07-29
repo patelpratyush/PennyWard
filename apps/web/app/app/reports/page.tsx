@@ -4,14 +4,20 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend,
   Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
 } from 'recharts'
-import { format, parseISO, subMonths } from 'date-fns'
+import { endOfMonth, format, parseISO, subMonths } from 'date-fns'
 import {
   CalendarClock, CreditCard, Download, FileBarChart, Goal, Printer,
   Receipt, Scale, TrendingUp, Wallet,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useAccounts } from '@/hooks/queries/useAccounts'
+import { useCategories } from '@/hooks/queries/useCategories'
+import { useTransactions } from '@/hooks/queries/useTransactions'
+import { useBudget } from '@/hooks/queries/useBudgets'
+import { useDebts } from '@/hooks/queries/useDebts'
 import { PageHeader } from '@/components/shared/Misc'
+import { LoadingSkeleton } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -40,20 +46,49 @@ const reportCards = [
 type ReportId = (typeof reportCards)[number]['id']
 
 export default function Reports() {
-  const { transactions, accounts, categories, budgets, debts, goals, bills } = useStore()
+  // Goals and bills are out of migration scope for this plan and stay on the
+  // legacy store. Accounts, transactions, categories, budgets, and debts are
+  // migrated entities and are read from the real API via React Query.
+  const { goals, bills } = useStore()
   const [active, setActive] = useState<ReportId | null>(null)
   const [from, setFrom] = useState(format(subMonths(new Date(), 2), 'yyyy-MM-01'))
   const [to, setTo] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [accountFilter, setAccountFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
 
-  const ranged = useMemo(() => transactions.filter((t) =>
-    t.date >= from && t.date <= to &&
-    (accountFilter === 'all' || t.accountId === accountFilter) &&
-    (categoryFilter === 'all' || t.categoryId === categoryFilter || t.splits?.some((s) => s.categoryId === categoryFilter))),
-  [transactions, from, to, accountFilter, categoryFilter])
+  const accountsQ = useAccounts()
+  const categoriesQ = useCategories()
+  const debtsQ = useDebts()
+  const accounts = accountsQ.data ?? []
+  const categories = categoriesQ.data ?? []
+  const debts = debtsQ.data ?? []
 
-  const summaries = useMemo(() => monthlySummaries(ranged.length !== transactions.length ? ranged : transactions, 6), [ranged, transactions])
+  // The API filters accountId/categoryId server-side but not transfer-split
+  // category matches (transaction splits aren't modeled in the DB yet), so
+  // apply the category filter's split fallback client-side over the returned page.
+  const rangedQ = useTransactions({
+    from, to,
+    accountId: accountFilter !== 'all' ? accountFilter : undefined,
+    categoryId: categoryFilter !== 'all' ? categoryFilter : undefined,
+    pageSize: 200,
+  })
+  const ranged = useMemo(() => rangedQ.data?.items ?? [], [rangedQ.data])
+
+  // The budget report looks at a specific month (derived from the "to" filter),
+  // independent of the ranged transaction filters above, so it needs its own
+  // unfiltered-by-account/category fetch for that whole month.
+  const budgetMonth = to.slice(0, 7)
+  const budgetMonthStart = `${budgetMonth}-01`
+  const budgetMonthEnd = format(endOfMonth(parseISO(budgetMonthStart)), 'yyyy-MM-dd')
+  const budgetMonthTxQ = useTransactions({ from: budgetMonthStart, to: budgetMonthEnd, pageSize: 200 })
+  const budgetMonthTransactions = useMemo(() => budgetMonthTxQ.data?.items ?? [], [budgetMonthTxQ.data])
+  const budgetQ = useBudget(budgetMonth)
+  const budget = budgetQ.data ?? null
+
+  const isLoading = accountsQ.isLoading || categoriesQ.isLoading || debtsQ.isLoading || rangedQ.isLoading
+    || (active === 'budget' && (budgetMonthTxQ.isLoading || budgetQ.isLoading))
+
+  const summaries = useMemo(() => monthlySummaries(ranged, 6), [ranged])
 
   const report = useMemo(() => {
     if (!active) return null
@@ -82,10 +117,8 @@ export default function Reports() {
       return { kind: 'networth' as const, nw, rows }
     }
     if (active === 'budget') {
-      const month = to.slice(0, 7)
-      const budget = budgets.find((b) => b.month === month) ?? budgets[budgets.length - 1]
       if (!budget) return { kind: 'budget' as const, rows: [], month: '' }
-      const catMap = categoryTotals(transactions, budget.month)
+      const catMap = categoryTotals(budgetMonthTransactions, budget.month)
       const rows = budget.entries.map((e) => {
         const spent = catMap.get(e.categoryId) ?? 0
         return {
@@ -125,7 +158,7 @@ export default function Reports() {
       return { kind: 'transactions' as const, rows: ranged }
     }
     return null
-  }, [active, ranged, summaries, accounts, budgets, categories, transactions, to, debts, goals, bills])
+  }, [active, ranged, summaries, accounts, budget, categories, budgetMonthTransactions, debts, goals, bills])
 
   const exportReport = () => {
     if (!report || !active) return
@@ -176,6 +209,15 @@ export default function Reports() {
   }
 
   const meta = reportCards.find((r) => r.id === active)!
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader title={meta.title} description={meta.desc} actions={<Button variant="ghost" onClick={() => setActive(null)}>All reports</Button>} />
+        <LoadingSkeleton rows={6} />
+      </div>
+    )
+  }
 
   return (
     <div>

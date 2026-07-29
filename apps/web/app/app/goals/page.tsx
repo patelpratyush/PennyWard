@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useAccounts } from '@/hooks/queries/useAccounts'
 import { PageHeader, StatusBadge } from '@/components/shared/Misc'
 import { EmptyState } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
@@ -22,7 +23,8 @@ import { formatCurrency, formatDate } from '@/lib/format'
 import type { Goal } from '@/types'
 
 function GoalsInner() {
-  const { goals, accounts, updateGoal, deleteGoal } = useStore()
+  const { goals, updateGoal, deleteGoal } = useStore()
+  const { data: accounts = [] } = useAccounts()
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const router = useRouter()

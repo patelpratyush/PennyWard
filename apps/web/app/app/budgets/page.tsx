@@ -1,17 +1,17 @@
 'use client'
 import { useMemo, useState } from 'react'
-import { addMonths, format, parseISO } from 'date-fns'
+import { addMonths, endOfMonth, format, parseISO, subMonths } from 'date-fns'
 import { Area, AreaChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts'
 import {
   ArrowRightLeft, ChevronLeft, ChevronRight, Copy, MoreHorizontal, Plus,
   RotateCcw, Settings2, Wallet,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStore } from '@/stores/useStore'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { useBudget, useUpsertBudget } from '@/hooks/queries/useBudgets'
+import { useTransactions } from '@/hooks/queries/useTransactions'
 import { PageHeader, StatusBadge } from '@/components/shared/Misc'
-import { EmptyState } from '@/components/shared/States'
+import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
 import { CategoryIcon } from '@/components/shared/CategoryIcon'
 import { Button } from '@/components/ui/button'
@@ -32,8 +32,8 @@ import type { BudgetEntry, Category } from '@/types'
 const EMPTY_CATEGORIES: Category[] = []
 
 export default function Budgets() {
-  const { transactions } = useStore()
-  const categories = useCategories().data ?? EMPTY_CATEGORIES
+  const categoriesQ = useCategories()
+  const categories = categoriesQ.data ?? EMPTY_CATEGORIES
   const [monthOffset, setMonthOffset] = useState(0)
   const [editingCell, setEditingCell] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -50,9 +50,28 @@ export default function Budgets() {
   const month = format(monthDate, 'yyyy-MM')
   const prevMonth = format(addMonths(monthDate, -1), 'yyyy-MM')
 
-  const budget = useBudget(month).data ?? null
-  const prevBudget = useBudget(prevMonth).data ?? null
+  const budgetQ = useBudget(month)
+  const prevBudgetQ = useBudget(prevMonth)
+  const budget = budgetQ.data ?? null
+  const prevBudget = prevBudgetQ.data ?? null
   const upsertMutation = useUpsertBudget()
+
+  // The "spending trend" drawer and the 6-month summary strip always look at the
+  // trailing six real-world months (see monthlySummaries), while the currently
+  // viewed month can be navigated arbitrarily far away via monthOffset. Fetch a
+  // window wide enough to cover both: the trailing six months from today, and the
+  // previous/current/viewed month, whichever spans wider.
+  const today = new Date()
+  const sixMonthsAgoStr = format(subMonths(today, 5), 'yyyy-MM-01')
+  const viewedRangeStartStr = format(addMonths(monthDate, -1), 'yyyy-MM-01')
+  const viewedRangeEndStr = format(endOfMonth(monthDate), 'yyyy-MM-dd')
+  const todayStr = format(today, 'yyyy-MM-dd')
+  const txFrom = sixMonthsAgoStr < viewedRangeStartStr ? sixMonthsAgoStr : viewedRangeStartStr
+  const txTo = todayStr > viewedRangeEndStr ? todayStr : viewedRangeEndStr
+  const txQ = useTransactions({ from: txFrom, to: txTo, pageSize: 200 })
+  const transactions = useMemo(() => txQ.data?.items ?? [], [txQ.data])
+
+  const isLoading = categoriesQ.isLoading || budgetQ.isLoading || prevBudgetQ.isLoading || txQ.isLoading
 
   const saveBudget = (
     patch: Partial<{ entries: BudgetEntry[]; expectedIncome: number; savingsTarget: number }>,
@@ -132,6 +151,15 @@ export default function Budgets() {
     }))
   }, [drawerCategory, summaries, transactions])
   const drawerAvg = drawerTrend.length ? round2(drawerTrend.reduce((s, t) => s + t.value, 0) / drawerTrend.length) : 0
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader title={`${formatMonth(monthDate)} Budget`} description="Give every dollar a job, then track how the month unfolds." />
+        <LoadingSkeleton rows={6} className="mt-4" />
+      </div>
+    )
+  }
 
   return (
     <div>

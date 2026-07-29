@@ -6,8 +6,9 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip as RToolti
 import { format, parseISO, subMonths } from 'date-fns'
 import { Archive, ArrowLeft, ArrowDownLeft, ArrowUpRight, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStore } from '@/stores/useStore'
 import { useAccounts, useUpdateAccount } from '@/hooks/queries/useAccounts'
+import { useTransactions } from '@/hooks/queries/useTransactions'
+import { useCategories } from '@/hooks/queries/useCategories'
 import { AccountDialog } from '@/components/financial/AccountDialog'
 import { ChartCard, PageHeader } from '@/components/shared/Misc'
 import { Money } from '@/components/shared/Money'
@@ -21,15 +22,19 @@ import { cn } from '@/lib/utils'
 export default function AccountDetail() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { transactions, categories } = useStore()
-  const { data: accounts = [], isLoading } = useAccounts()
+  const { data: accounts = [], isLoading: accountsLoading } = useAccounts()
+  const categoriesQ = useCategories()
+  const categories = categoriesQ.data ?? []
+  const txQ = useTransactions({ accountId: id, pageSize: 200 })
+  const transactions = txQ.data?.items ?? []
   const updateAccountMut = useUpdateAccount()
   const [editOpen, setEditOpen] = useState(false)
   const account = accounts.find((a) => a.id === id)
+  const isLoading = accountsLoading || categoriesQ.isLoading || txQ.isLoading
 
   const related = useMemo(
-    () => transactions.filter((t) => t.accountId === id).sort((a, b) => b.date.localeCompare(a.date)),
-    [transactions, id])
+    () => [...transactions].sort((a, b) => b.date.localeCompare(a.date)),
+    [transactions])
 
   const history = useMemo(() => {
     if (!account) return []
@@ -89,7 +94,12 @@ export default function AccountDetail() {
         actions={
           <>
             <Button variant="outline" onClick={() => setEditOpen(true)}><Pencil className="mr-1.5 h-4 w-4" />Edit</Button>
-            <Button variant="outline" onClick={() => { updateAccountMut.mutate({ id: account.id, patch: { archived: true } }); toast.success('Account archived.'); router.push('/app/accounts') }}>
+            <Button variant="outline" onClick={() => {
+              updateAccountMut.mutate({ id: account.id, patch: { archived: true } }, {
+                onSuccess: () => { toast.success('Account archived.'); router.push('/app/accounts') },
+                onError: () => toast.error('Could not archive this account. Please try again.'),
+              })
+            }}>
               <Archive className="mr-1.5 h-4 w-4" />Archive
             </Button>
           </>
