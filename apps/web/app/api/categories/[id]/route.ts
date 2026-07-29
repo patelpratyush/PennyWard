@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
+import { withAuthErrorHandling } from '@/lib/withAuth'
 import { updateCategorySchema } from '@/lib/validation/categories'
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withAuthErrorHandling(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const { userId } = await getRequiredSession()
   const { id } = await params
   const parsed = updateCategorySchema.safeParse(await req.json())
@@ -12,4 +13,4 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!existing) return NextResponse.json({ error: 'Not found or not editable' }, { status: 404 })
   const row = await db.category.update({ where: { id }, data: parsed.data })
   return NextResponse.json({ id: row.id })
-}
+})

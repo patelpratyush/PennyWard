@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
+import { withAuthErrorHandling } from '@/lib/withAuth'
+import { assertAccountOwned } from '@/lib/assertOwned'
 import { createDebtSchema } from '@/lib/validation/debts'
 import { round2 } from '@/lib/format'
 
@@ -14,16 +16,19 @@ function toDTO(row: Awaited<ReturnType<typeof db.debt.findFirstOrThrow>>) {
   }
 }
 
-export async function GET() {
+export const GET = withAuthErrorHandling(async () => {
   const { userId } = await getRequiredSession()
   const rows = await db.debt.findMany({ where: { userId }, orderBy: { id: 'asc' } })
   return NextResponse.json(rows.map(toDTO))
-}
+})
 
-export async function POST(req: Request) {
+export const POST = withAuthErrorHandling(async (req: Request) => {
   const { userId } = await getRequiredSession()
   const parsed = createDebtSchema.safeParse(await req.json())
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+  if (parsed.data.accountId && !(await assertAccountOwned(parsed.data.accountId, userId))) {
+    return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+  }
   const row = await db.debt.create({ data: { ...parsed.data, userId } })
   return NextResponse.json(toDTO(row), { status: 201 })
-}
+})

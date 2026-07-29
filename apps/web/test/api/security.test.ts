@@ -5,7 +5,7 @@ let currentUserId = 'user_a'
 vi.mock('@/lib/session', () => ({ getRequiredSession: vi.fn(async () => ({ userId: currentUserId })) }))
 
 import { GET as getAccounts } from '@/app/api/accounts/route'
-import { GET as getTransactions } from '@/app/api/transactions/route'
+import { GET as getTransactions, POST as createTransaction } from '@/app/api/transactions/route'
 import { GET as getDebts } from '@/app/api/debts/route'
 import { PATCH as patchAccount } from '@/app/api/accounts/[id]/route'
 
@@ -50,5 +50,28 @@ describe('cross-user data isolation', () => {
     const res = await getDebts()
     const body = await res.json()
     expect(body.some((d: { name: string }) => d.name === 'B Debt')).toBe(false)
+  })
+
+  it('user A cannot create a transaction referencing user B\'s category', async () => {
+    currentUserId = 'user_a'
+    const aAccount = await db.financialAccount.create({ data: { userId: 'user_a', name: 'A Checking', institution: 'X', type: 'checking', balance: 100 } })
+    const bCategory = await db.category.create({ data: { userId: 'user_b', name: 'B Only Category', group: 'Lifestyle', icon: 'shopping-bag', color: 'chart-1' } })
+
+    const res = await createTransaction(
+      new Request('http://x', {
+        method: 'POST',
+        body: JSON.stringify({
+          accountId: aAccount.id,
+          categoryId: bCategory.id,
+          type: 'expense',
+          amount: 12.5,
+          merchant: 'Test Merchant',
+          date: '2026-01-01',
+        }),
+      }),
+    )
+    expect(res.status).toBe(404)
+    const count = await db.transaction.count({ where: { accountId: aAccount.id } })
+    expect(count).toBe(0)
   })
 })

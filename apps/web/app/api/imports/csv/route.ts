@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { parse, isValid } from 'date-fns'
 import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
+import { withAuthErrorHandling } from '@/lib/withAuth'
 import { normalizePayee } from '@/lib/payeeNormalize'
 import { importHash } from '@/lib/importHash'
 import { round2 } from '@/lib/format'
@@ -15,7 +16,7 @@ const schema = z.object({
   dateFormat: z.string().default('MM/dd/yyyy'),
 })
 
-export async function POST(req: Request) {
+export const POST = withAuthErrorHandling(async (req: Request) => {
   const { userId } = await getRequiredSession()
   const success = await checkRateLimit(importRateLimit, userId)
   if (!success) return NextResponse.json({ error: 'Too many attempts, try again later' }, { status: 429 })
@@ -67,4 +68,4 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ imported, duplicates, review })
-}
+})

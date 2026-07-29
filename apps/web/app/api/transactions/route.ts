@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
+import { withAuthErrorHandling } from '@/lib/withAuth'
+import { assertAccountOwned, assertCategoryOwned } from '@/lib/assertOwned'
 import { createTransactionSchema, listQuerySchema } from '@/lib/validation/transactions'
 import { round2 } from '@/lib/format'
 import type { Prisma } from '@prisma/client'
@@ -39,7 +41,7 @@ function toDTO(row: {
   }
 }
 
-export async function GET(req: Request) {
+export const GET = withAuthErrorHandling(async (req: Request) => {
   const { userId } = await getRequiredSession()
   const url = new URL(req.url)
   const parsed = listQuerySchema.safeParse(Object.fromEntries(url.searchParams))
@@ -57,14 +59,18 @@ export async function GET(req: Request) {
     db.transaction.count({ where }),
   ])
   return NextResponse.json({ items: items.map(toDTO), total })
-}
+})
 
-export async function POST(req: Request) {
+export const POST = withAuthErrorHandling(async (req: Request) => {
   const { userId } = await getRequiredSession()
   const parsed = createTransactionSchema.safeParse(await req.json())
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
-  const account = await db.financialAccount.findFirst({ where: { id: parsed.data.accountId, userId } })
-  if (!account) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+  if (!(await assertAccountOwned(parsed.data.accountId, userId))) {
+    return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+  }
+  if (parsed.data.categoryId && !(await assertCategoryOwned(parsed.data.categoryId, userId))) {
+    return NextResponse.json({ error: 'Category not found' }, { status: 404 })
+  }
   const row = await db.transaction.create({ data: { ...parsed.data, date: new Date(parsed.data.date), userId, source: 'manual' } })
   return NextResponse.json(toDTO(row), { status: 201 })
-}
+})

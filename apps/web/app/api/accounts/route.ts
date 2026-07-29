@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
+import { withAuthErrorHandling } from '@/lib/withAuth'
 import { createAccountSchema } from '@/lib/validation/accounts'
 import { round2 } from '@/lib/format'
 
@@ -22,13 +23,13 @@ function toDTO(row: Awaited<ReturnType<typeof db.financialAccount.findFirstOrThr
   }
 }
 
-export async function GET() {
+export const GET = withAuthErrorHandling(async () => {
   const { userId } = await getRequiredSession()
   const rows = await db.financialAccount.findMany({ where: { userId }, orderBy: { lastUpdated: 'asc' } })
   return NextResponse.json(rows.map(toDTO))
-}
+})
 
-export async function POST(req: Request) {
+export const POST = withAuthErrorHandling(async (req: Request) => {
   const { userId } = await getRequiredSession()
   const parsed = createAccountSchema.safeParse(await req.json())
   if (!parsed.success) {
@@ -36,4 +37,4 @@ export async function POST(req: Request) {
   }
   const row = await db.financialAccount.create({ data: { ...parsed.data, userId } })
   return NextResponse.json(toDTO(row), { status: 201 })
-}
+})
