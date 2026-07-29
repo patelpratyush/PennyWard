@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useAccounts } from '@/hooks/queries/useAccounts'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -24,7 +25,8 @@ export function GoalDialog({ open, onOpenChange, editing }: {
   onOpenChange: (v: boolean) => void
   editing?: Goal | null
 }) {
-  const { accounts, addGoal, updateGoal } = useStore()
+  const { addGoal, updateGoal } = useStore()
+  const { data: accounts = [] } = useAccounts()
   const [form, setForm] = useState({
     name: '', type: 'emergency' as GoalType, targetAmount: '', currentAmount: '',
     targetDate: '', monthlyContribution: '', accountId: '', priority: 'medium' as Goal['priority'], notes: '',
