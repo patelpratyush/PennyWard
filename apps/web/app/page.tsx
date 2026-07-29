@@ -159,9 +159,9 @@ export default function Landing() {
                   >
                     <path d="M2 7 C 70 2, 150 9, 298 3" stroke="var(--lime-deep)" strokeWidth="4" fill="none" strokeLinecap="round" />
                   </svg>
-                </span>{' '}
-                where it goes next.
+                </span>
               </span>
+              <span className="rise block" style={{ animationDelay: '0.36s' }}>where it goes next.</span>
             </h1>
 
             <p
