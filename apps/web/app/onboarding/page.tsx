@@ -14,6 +14,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useStore } from '@/stores/useStore'
+import { useCreateAccount } from '@/hooks/queries/useAccounts'
+import { useCreateDebt } from '@/hooks/queries/useDebts'
+import { useUpsertBudget } from '@/hooks/queries/useBudgets'
+import { useCategories } from '@/hooks/queries/useCategories'
 import { formatCurrency, round2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { AccountType, DebtType } from '@/types'
@@ -36,17 +40,20 @@ const accountTypes: { type: AccountType; label: string; icon: typeof Landmark; l
   { type: 'other', label: 'Other', icon: Plus },
 ]
 
+// Keyed by the real system category's `name` (seeded in prisma/seed.ts) rather
+// than a hardcoded id, so the amount picked here can be resolved against the
+// actual Category row returned by the API when the budget is saved.
 const budgetPresets = [
-  { categoryId: 'cat_rent', label: 'Rent or mortgage', value: 1650 },
-  { categoryId: 'cat_groceries', label: 'Groceries', value: 520 },
-  { categoryId: 'cat_dining', label: 'Dining', value: 240 },
-  { categoryId: 'cat_fuel', label: 'Fuel', value: 180 },
-  { categoryId: 'cat_electric', label: 'Electricity', value: 120 },
-  { categoryId: 'cat_internet', label: 'Internet', value: 70 },
-  { categoryId: 'cat_phone', label: 'Mobile phone', value: 85 },
-  { categoryId: 'cat_subscriptions', label: 'Subscriptions', value: 45 },
-  { categoryId: 'cat_entertainment', label: 'Entertainment', value: 90 },
-  { categoryId: 'cat_shopping', label: 'Shopping', value: 260 },
+  { categoryName: 'Rent or mortgage', label: 'Rent or mortgage', value: 1650 },
+  { categoryName: 'Groceries', label: 'Groceries', value: 520 },
+  { categoryName: 'Dining', label: 'Dining', value: 240 },
+  { categoryName: 'Fuel', label: 'Fuel', value: 180 },
+  { categoryName: 'Electricity', label: 'Electricity', value: 120 },
+  { categoryName: 'Internet', label: 'Internet', value: 70 },
+  { categoryName: 'Mobile phone', label: 'Mobile phone', value: 85 },
+  { categoryName: 'Subscriptions', label: 'Subscriptions', value: 45 },
+  { categoryName: 'Entertainment', label: 'Entertainment', value: 90 },
+  { categoryName: 'Shopping', label: 'Shopping', value: 260 },
 ]
 
 interface DraftAccount { name: string; type: AccountType; balance: number }
@@ -57,6 +64,15 @@ const stepTitles = ['Your goals', 'Preferences', 'Add accounts', 'Add your data'
 export default function Onboarding() {
   const router = useRouter()
   const store = useStore()
+  // Accounts, debts, and the first budget are migrated entities and must be
+  // created through the real API — writing them to the Zustand/localStorage
+  // store only would leave the (API-backed) dashboard empty after redirect.
+  // `updateProfile` has no server-side equivalent yet (profile/settings were
+  // never in scope for this migration), so it stays on the store.
+  const createAccount = useCreateAccount()
+  const createDebt = useCreateDebt()
+  const upsertBudget = useUpsertBudget()
+  const categoriesQ = useCategories()
   const [step, setStep] = useState(store.onboarding.step || 1)
   const [goals, setGoals] = useState<string[]>(store.onboarding.goals)
   const [prefs, setPrefs] = useState({
@@ -72,7 +88,8 @@ export default function Onboarding() {
   const [dataChoice, setDataChoice] = useState<string>('')
   const [income, setIncome] = useState(6250)
   const [budgetValues, setBudgetValues] = useState<Record<string, number>>(
-    Object.fromEntries(budgetPresets.map((b) => [b.categoryId, b.value])))
+    Object.fromEntries(budgetPresets.map((b) => [b.categoryName, b.value])))
+  const [finishing, setFinishing] = useState(false)
 
   const budgetedTotal = useMemo(() => round2(Object.values(budgetValues).reduce((s, v) => s + (v || 0), 0)), [budgetValues])
   const leftToAssign = round2(income - budgetedTotal - 800)
@@ -83,28 +100,39 @@ export default function Onboarding() {
     window.scrollTo({ top: 0 })
   }
 
-  const finish = () => {
-    store.updateProfile({ ...prefs })
-    for (const a of accounts) {
-      store.addAccount({
-        name: a.name, institution: a.name, type: a.type,
-        balance: accountTypes.find((t) => t.type === a.type)?.liability ? -Math.abs(a.balance) : Math.abs(a.balance),
-        includeInNetWorth: true, archived: false,
-      })
+  const finish = async () => {
+    setFinishing(true)
+    try {
+      store.updateProfile({ ...prefs })
+
+      for (const a of accounts) {
+        await createAccount.mutateAsync({
+          name: a.name, institution: a.name, type: a.type,
+          balance: accountTypes.find((t) => t.type === a.type)?.liability ? -Math.abs(a.balance) : Math.abs(a.balance),
+          includeInNetWorth: true, archived: false,
+        })
+      }
+      for (const d of debts) {
+        await createDebt.mutateAsync({ ...d, lender: d.name, originalBalance: d.balance })
+      }
+
+      const categories = categoriesQ.data ?? []
+      const entries = Object.entries(budgetValues)
+        .map(([categoryName, budgeted]) => ({ categoryId: categories.find((c) => c.name === categoryName)?.id, budgeted }))
+        .filter((e): e is { categoryId: string; budgeted: number } => !!e.categoryId && e.budgeted > 0)
+        .map((e) => ({ categoryId: e.categoryId, budgeted: e.budgeted, rollover: false }))
+
+      const month = new Date().toISOString().slice(0, 7)
+      await upsertBudget.mutateAsync({ month, expectedIncome: income, savingsTarget: 800, entries })
+
+      store.completeOnboarding()
+      store.pushNotification({ type: 'system', title: 'Welcome to FinPilot', message: 'Your setup is complete — your dashboard is ready.' })
+      toast.success('Setup complete — welcome aboard.')
+      router.push('/app/dashboard')
+    } catch {
+      toast.error('Something went wrong finishing setup. Please try again.')
+      setFinishing(false)
     }
-    for (const d of debts) {
-      store.addDebt({ ...d, lender: d.name, originalBalance: d.balance })
-    }
-    const month = new Date().toISOString().slice(0, 7)
-    store.upsertBudget(month, {
-      expectedIncome: income,
-      savingsTarget: 800,
-      entries: Object.entries(budgetValues).map(([categoryId, budgeted]) => ({ categoryId, budgeted, rollover: false })),
-    })
-    store.completeOnboarding()
-    store.pushNotification({ type: 'system', title: 'Welcome to FinPilot', message: 'Your setup is complete — your dashboard is ready.' })
-    toast.success('Setup complete — welcome aboard.')
-    router.push('/app/dashboard')
   }
 
   const addAccountDraft = (type: AccountType, label: string) => {
@@ -418,11 +446,11 @@ export default function Onboarding() {
                     </div>
                     <div className="mt-4 space-y-2">
                       {budgetPresets.map((b) => (
-                        <div key={b.categoryId} className="flex items-center gap-3">
+                        <div key={b.categoryName} className="flex items-center gap-3">
                           <span className="flex-1 text-sm">{b.label}</span>
                           <Input
-                            type="number" className="w-28 text-right" value={budgetValues[b.categoryId] || ''}
-                            onChange={(e) => setBudgetValues({ ...budgetValues, [b.categoryId]: Number(e.target.value) })}
+                            type="number" className="w-28 text-right" value={budgetValues[b.categoryName] || ''}
+                            onChange={(e) => setBudgetValues({ ...budgetValues, [b.categoryName]: Number(e.target.value) })}
                             aria-label={`${b.label} budget`}
                           />
                         </div>
@@ -461,8 +489,8 @@ export default function Onboarding() {
                     </Card>
                   ))}
                 </div>
-                <Button size="lg" className="mt-8 h-12 px-8" onClick={finish}>
-                  Continue to dashboard <ArrowRight className="ml-1.5 h-4 w-4" />
+                <Button size="lg" className="mt-8 h-12 px-8" onClick={finish} disabled={finishing}>
+                  {finishing ? 'Setting up your account…' : <>Continue to dashboard <ArrowRight className="ml-1.5 h-4 w-4" /></>}
                 </Button>
               </div>
             )}
