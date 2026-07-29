@@ -95,7 +95,7 @@ export default function CarCalculator() {
 
   const exportAmortization = () => {
     downloadCSV(
-      'finpilot-amortization.csv',
+      'pennyward-amortization.csv',
       ['Payment #', 'Date', 'Starting balance', 'Scheduled', 'Extra', 'Total', 'Principal', 'Interest', 'Ending balance'],
       r.schedule.map((row) => [row.paymentNumber, row.date, row.startingBalance, row.scheduledPayment, row.extraPayment, row.totalPayment, row.principal, row.interest, row.endingBalance]),
     )

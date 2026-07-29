@@ -40,7 +40,7 @@ function VerifyEmail() {
     verified: {
       icon: <CheckCircle2 className="h-12 w-12 text-success" />,
       title: 'Email verified',
-      text: <>Your email is confirmed. You have full access to FinPilot.</>,
+      text: <>Your email is confirmed. You have full access to Pennyward.</>,
     },
     expired: {
       icon: <MailX className="h-12 w-12 text-destructive" />,

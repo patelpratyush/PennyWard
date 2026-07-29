@@ -221,7 +221,7 @@ export default function TransactionsImport() {
   }
 
   const exportErrors = () => {
-    downloadCSV('finpilot-import-errors.csv', ['Row', 'Issues', 'Raw data'],
+    downloadCSV('pennyward-import-errors.csv', ['Row', 'Issues', 'Raw data'],
       invalidRows.map((r, i) => [i + 1, r.issues.join('; '), JSON.stringify(r.raw)]))
   }
 
@@ -334,7 +334,7 @@ export default function TransactionsImport() {
               <CardContent className="p-6">
                 <h2 className="font-semibold">Map your columns</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Match FinPilot fields to columns in your file. A date column plus either a signed amount or debit+credit columns are required.
+                  Match Pennyward fields to columns in your file. A date column plus either a signed amount or debit+credit columns are required.
                 </p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {mapFields.map((f) => (

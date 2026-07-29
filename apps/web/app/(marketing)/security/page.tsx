@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 
 const items = [
   { icon: Lock, title: 'Encryption in transit', text: 'All production traffic is encrypted with TLS 1.2+. Sensitive fields are encrypted at rest in PostgreSQL.' },
-  { icon: Eye, title: 'Read-only bank connections', text: 'Bank connections (via Plaid, on the roadmap) are strictly read-only. FinPilot can never initiate transfers or payments.' },
+  { icon: Eye, title: 'Read-only bank connections', text: 'Bank connections (via Plaid, on the roadmap) are strictly read-only. Pennyward can never initiate transfers or payments.' },
   { icon: ShieldCheck, title: 'No data selling, ever', text: 'We do not sell, rent, or share personal financial data with advertisers. Revenue comes from subscriptions.' },
   { icon: KeyRound, title: 'Modern authentication', text: 'Passwords are hashed with modern algorithms. Two-factor authentication and passkeys are on the roadmap.' },
   { icon: UserCheck, title: 'Session controls', text: 'View active sessions, sign out other devices, and revoke access from Settings → Security.' },
@@ -24,9 +24,9 @@ export default function Security() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <ShieldCheck className="h-7 w-7" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Security at FinPilot</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Security at Pennyward</h1>
           <p className="mt-3 text-muted-foreground">
-            Financial data deserves restraint. FinPilot is built to know as little about you as possible — and to protect what it does know.
+            Financial data deserves restraint. Pennyward is built to know as little about you as possible — and to protect what it does know.
           </p>
         </motion.div>
 
@@ -53,11 +53,11 @@ export default function Security() {
             <h2 className="mb-2 text-base font-semibold text-foreground">About this demo</h2>
             <p>
               The version you are exploring stores all data locally in your browser — nothing leaves your device.
-              The security practices above describe the production architecture FinPilot is designed for, including the
+              The security practices above describe the production architecture Pennyward is designed for, including the
               planned FastAPI + PostgreSQL backend and read-only Plaid connections.
             </p>
             <p className="mt-3">
-              Found a vulnerability? Email <span className="font-medium text-foreground">security@finpilot.example</span> — we follow coordinated disclosure.
+              Found a vulnerability? Email <span className="font-medium text-foreground">security@pennyward.example</span> — we follow coordinated disclosure.
             </p>
             <Button asChild variant="outline" className="mt-4">
               <Link href="/privacy">Read the privacy policy</Link>

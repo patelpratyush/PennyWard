@@ -10,7 +10,7 @@ export function Logo({ className, markOnly = false }: { className?: string; mark
           <path d="M15.5 7.5H20V12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
-      {!markOnly && <span className="text-lg">FinPilot</span>}
+      {!markOnly && <span className="text-lg">Pennyward</span>}
     </span>
   )
 }

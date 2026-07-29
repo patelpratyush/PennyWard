@@ -8,7 +8,7 @@ export default function About() {
     <div className="px-4 py-16 sm:px-6">
       <div className="mx-auto max-w-3xl">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">About FinPilot</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">About Pennyward</h1>
           <p className="mt-4 text-lg text-muted-foreground">
             Most people don’t need more financial noise. They need a clear answer to simple questions:
             where did the money go, and what should happen next?
@@ -17,9 +17,9 @@ export default function About() {
 
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="mt-10 space-y-6 text-muted-foreground">
           <p>
-            FinPilot started with a spreadsheet — the kind people build when a car loan, a student loan, and a credit
+            Pennyward started with a spreadsheet — the kind people build when a car loan, a student loan, and a credit
             card all compete for the same paycheck. The spreadsheet worked, but it was fragile and joyless.
-            FinPilot is that spreadsheet, rebuilt as a calm, trustworthy product.
+            Pennyward is that spreadsheet, rebuilt as a calm, trustworthy product.
           </p>
           <p>
             We focus on the unglamorous math that actually changes outcomes: the true cost of financing a vehicle,
@@ -47,7 +47,7 @@ export default function About() {
         </div>
 
         <p className="mt-12 text-center text-sm text-muted-foreground">
-          FinPilot is a fictional product demo built to showcase a complete personal-finance frontend.
+          Pennyward is a fictional product demo built to showcase a complete personal-finance frontend.
         </p>
       </div>
     </div>

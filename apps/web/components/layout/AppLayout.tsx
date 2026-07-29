@@ -217,7 +217,7 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed?: boolean; onNavi
   return (
     <div className="flex h-full flex-col">
       <div className={cn('flex h-16 items-center border-b px-4', collapsed && 'justify-center px-2')}>
-        <Link href="/" onClick={onNavigate} aria-label="FinPilot home">
+        <Link href="/" onClick={onNavigate} aria-label="Pennyward home">
           <Logo markOnly={collapsed} />
         </Link>
       </div>

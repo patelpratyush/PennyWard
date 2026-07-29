@@ -47,16 +47,16 @@ function SignIn() {
       toast.error('Invalid email or password.')
       return
     }
-    toast.success('Welcome back to FinPilot.')
+    toast.success('Welcome back to Pennyward.')
     const callbackUrl = searchParams.get('callbackUrl')
     router.push(callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : '/app/dashboard')
   }
 
   return (
     <AuthShell
-      title="Sign in to FinPilot"
+      title="Sign in to Pennyward"
       subtitle="Pick up right where your money left off."
-      footer={<>New to FinPilot? <Link href="/sign-up" className="font-medium text-primary hover:underline">Create an account</Link></>}
+      footer={<>New to Pennyward? <Link href="/sign-up" className="font-medium text-primary hover:underline">Create an account</Link></>}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <GoogleButton label="Sign in" />

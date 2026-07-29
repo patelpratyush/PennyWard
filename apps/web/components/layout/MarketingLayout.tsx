@@ -22,7 +22,7 @@ export function MarketingNav() {
   return (
     <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/" aria-label="FinPilot home"><Logo /></Link>
+        <Link href="/" aria-label="Pennyward home"><Logo /></Link>
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
           {links.map((l) => (
             <Link
@@ -98,7 +98,7 @@ export function MarketingFooter() {
           ))}
         </div>
         <div className="mt-10 border-t pt-6 text-sm text-muted-foreground">
-          <p>© 2026 FinPilot. All rights reserved. FinPilot is a financial tracking and planning tool — not a financial advisor.</p>
+          <p>© 2026 Pennyward. All rights reserved. Pennyward is a financial tracking and planning tool — not a financial advisor.</p>
         </div>
       </div>
     </footer>

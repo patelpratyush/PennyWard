@@ -90,7 +90,7 @@ export default function Amortization() {
 
   const exportCSV = () => {
     downloadCSV(
-      `finpilot-amortization-${scenario.name.replace(/\s+/g, '-').toLowerCase()}.csv`,
+      `pennyward-amortization-${scenario.name.replace(/\s+/g, '-').toLowerCase()}.csv`,
       ['Payment #', 'Date', 'Starting balance', 'Scheduled payment', 'Extra payment', 'Total payment', 'Principal', 'Interest', 'Ending balance', 'Cumulative principal', 'Cumulative interest'],
       result.schedule.map((r) => [r.paymentNumber, r.date, r.startingBalance, r.scheduledPayment, r.extraPayment, r.totalPayment, r.principal, r.interest, r.endingBalance, r.cumulativePrincipal, r.cumulativeInterest]),
     )

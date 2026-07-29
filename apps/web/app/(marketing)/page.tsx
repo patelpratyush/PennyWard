@@ -130,8 +130,8 @@ function HeroPreview() {
 }
 
 const trustItems = [
-  { icon: Lock, title: 'Private by design', text: 'Your data stays yours. FinPilot runs on your device in this demo, with encrypted connections planned for sync.' },
-  { icon: Landmark, title: 'Read-only connections', text: 'Future bank connections via Plaid will be read-only — FinPilot can never move your money.' },
+  { icon: Lock, title: 'Private by design', text: 'Your data stays yours. Pennyward runs on your device in this demo, with encrypted connections planned for sync.' },
+  { icon: Landmark, title: 'Read-only connections', text: 'Future bank connections via Plaid will be read-only — Pennyward can never move your money.' },
   { icon: ShieldCheck, title: 'No selling data', text: 'We never sell personal financial data. Our business model is subscriptions, not advertising.' },
   { icon: CheckCircle2, title: 'Secure authentication', text: 'Modern authentication with planned two-factor support and session controls.' },
   { icon: Download, title: 'Easy export', text: 'Export every transaction, budget, and plan as CSV or JSON whenever you want.' },
@@ -158,11 +158,11 @@ const testimonials = [
 ]
 
 const faqs = [
-  ['Is FinPilot secure?', 'Yes. This demo stores data only in your browser. The production service is designed around encrypted transport, read-only bank connections, and secure authentication. We never sell personal financial data.'],
+  ['Is Pennyward secure?', 'Yes. This demo stores data only in your browser. The production service is designed around encrypted transport, read-only bank connections, and secure authentication. We never sell personal financial data.'],
   ['Can I connect my bank?', 'Bank connections through Plaid are on the roadmap and will be strictly read-only. Today, CSV import covers every major bank export format.'],
-  ['How does CSV import work?', 'Upload a CSV from your bank, map the date, amount, and merchant columns, preview the rows, and FinPilot flags duplicates before importing.'],
-  ['How accurate are the loan calculations?', 'FinPilot uses standard amortization math with cent-level rounding, supports extra and one-time payments, 0% APR loans, and adjusts the final payment so balances never go negative.'],
-  ['Does FinPilot give financial advice?', 'No. FinPilot provides calculations, tracking, and educational information. It does not provide investment, tax, or legal advice.'],
+  ['How does CSV import work?', 'Upload a CSV from your bank, map the date, amount, and merchant columns, preview the rows, and Pennyward flags duplicates before importing.'],
+  ['How accurate are the loan calculations?', 'Pennyward uses standard amortization math with cent-level rounding, supports extra and one-time payments, 0% APR loans, and adjusts the final payment so balances never go negative.'],
+  ['Does Pennyward give financial advice?', 'No. Pennyward provides calculations, tracking, and educational information. It does not provide investment, tax, or legal advice.'],
   ['Can I cancel anytime?', 'Yes. Cancel from Settings → Subscription. Your data remains exportable, and the Free plan stays available.'],
   ['Can I export my data?', 'Yes — every report exports to CSV, and Settings → Data exports your entire workspace as JSON.'],
   ['Is there a mobile app?', 'A React Native app is planned and will use the same backend. The web app is fully responsive and works well on phones today.'],
@@ -191,7 +191,7 @@ export default function Landing() {
             Know where your money goes. <span className="text-primary">Build a plan</span> for where it should go next.
           </motion.h1>
           <motion.p {...fade(2)} className="mx-auto mt-5 max-w-2xl text-pretty text-lg text-muted-foreground">
-            FinPilot helps you track spending, create budgets, calculate loans, eliminate debt, manage savings goals, and understand your financial future from one clear dashboard.
+            Pennyward helps you track spending, create budgets, calculate loans, eliminate debt, manage savings goals, and understand your financial future from one clear dashboard.
           </motion.p>
           <motion.div {...fade(3)} className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="h-12 px-7 text-base">
@@ -263,7 +263,7 @@ export default function Landing() {
               “What happens if I buy a $38,500 vehicle with $5,000 down at 5.99% APR?”
             </h2>
             <p className="mt-4 text-muted-foreground">
-              FinPilot runs the full math instantly — taxes, fees, financing, and the effect of extra payments — so you can decide with real numbers instead of guesses.
+              Pennyward runs the full math instantly — taxes, fees, financing, and the effect of extra payments — so you can decide with real numbers instead of guesses.
             </p>
             <Button asChild className="mt-6">
               <Link href="/app/loans/car-calculator">Try the car-loan calculator <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
@@ -301,7 +301,7 @@ export default function Landing() {
       {/* Testimonials */}
       <section className="px-4 py-20 sm:px-6">
         <div className="mx-auto max-w-6xl">
-          <motion.h2 {...fade()} className="text-center text-2xl font-bold tracking-tight sm:text-3xl">People plan with FinPilot</motion.h2>
+          <motion.h2 {...fade()} className="text-center text-2xl font-bold tracking-tight sm:text-3xl">People plan with Pennyward</motion.h2>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {testimonials.map((t, i) => (
               <motion.div key={t.name} {...fade(i)}>

@@ -1,5 +1,5 @@
 // ─── Backend integration seam ────────────────────────────────────────────────
-// FinPilot currently persists to localStorage via the Zustand store in
+// Pennyward currently persists to localStorage via the Zustand store in
 // src/stores/useStore.ts. When the FastAPI backend is ready, replace the store
 // actions' bodies with calls to these endpoints. PostgreSQL models will map
 // 1:1 to the domain types in src/types/index.ts.

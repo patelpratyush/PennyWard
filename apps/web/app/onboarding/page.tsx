@@ -126,7 +126,7 @@ export default function Onboarding() {
       await upsertBudget.mutateAsync({ month, expectedIncome: income, savingsTarget: 800, entries })
 
       store.completeOnboarding()
-      store.pushNotification({ type: 'system', title: 'Welcome to FinPilot', message: 'Your setup is complete — your dashboard is ready.' })
+      store.pushNotification({ type: 'system', title: 'Welcome to Pennyward', message: 'Your setup is complete — your dashboard is ready.' })
       toast.success('Setup complete — welcome aboard.')
       router.push('/app/dashboard')
     } catch {
@@ -194,7 +194,7 @@ export default function Onboarding() {
             {/* STEP 1 — goals */}
             {step === 1 && (
               <div>
-                <h1 className="text-2xl font-bold">What would you like FinPilot to help with?</h1>
+                <h1 className="text-2xl font-bold">What would you like Pennyward to help with?</h1>
                 <p className="mt-1 text-sm text-muted-foreground">Choose all that apply — we’ll tailor your dashboard.</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   {goalOptions.map((g) => {

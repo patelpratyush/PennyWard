@@ -1,4 +1,4 @@
-// ─── FinPilot domain types ───────────────────────────────────────────────────
+// ─── Pennyward domain types ───────────────────────────────────────────────────
 
 export type AccountType =
   | 'checking' | 'savings' | 'cash' | 'credit_card' | 'auto_loan'

@@ -185,7 +185,7 @@ function NotificationsSection() {
     ['goalMilestones', 'Goal milestones', '25 / 50 / 75 / 100% goal progress.'],
     ['importAlerts', 'Import alerts', 'CSV import completions and error reports.'],
     ['stockAlerts', 'Stock alerts', 'Watchlist price movements (demo data).'],
-    ['productUpdates', 'Product updates', 'Occasional news about FinPilot features.'],
+    ['productUpdates', 'Product updates', 'Occasional news about Pennyward features.'],
   ]
   return (
     <Card className="shadow-card">
@@ -375,7 +375,7 @@ function RulesSection() {
 function SecuritySection() {
   const sessions = [
     { device: 'MacBook Pro — Chrome', location: 'New Jersey, US', current: true },
-    { device: 'iPhone 15 — FinPilot Web', location: 'New Jersey, US', current: false },
+    { device: 'iPhone 15 — Pennyward Web', location: 'New Jersey, US', current: false },
   ]
   return (
     <div className="space-y-4">
@@ -429,7 +429,7 @@ function DataSection() {
       <Card className="shadow-card">
         <CardHeader><CardTitle className="text-base">Export & backup</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => { downloadJSON(`finpilot-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.parse(exportState())); toast.success('Full backup exported as JSON.') }}>
+          <Button variant="outline" onClick={() => { downloadJSON(`pennyward-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.parse(exportState())); toast.success('Full backup exported as JSON.') }}>
             <Download className="mr-1.5 h-4 w-4" />Export all data (JSON)
           </Button>
           <Button variant="outline" onClick={() => {
@@ -441,7 +441,7 @@ function DataSection() {
               if (!file) return
               const text = await file.text()
               if (importData(text)) toast.success('Backup restored.')
-              else toast.error('That file could not be imported — is it a FinPilot backup?')
+              else toast.error('That file could not be imported — is it a Pennyward backup?')
             }
             input.click()
           }}>

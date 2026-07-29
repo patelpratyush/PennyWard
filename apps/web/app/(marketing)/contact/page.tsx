@@ -44,9 +44,9 @@ export default function Contact() {
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           <div className="space-y-4">
             {[
-              { icon: Mail, title: 'Email', text: 'support@finpilot.example' },
+              { icon: Mail, title: 'Email', text: 'support@pennyward.example' },
               { icon: MessageSquare, title: 'Response time', text: 'Within one business day' },
-              { icon: ShieldQuestion, title: 'Security issues', text: 'security@finpilot.example' },
+              { icon: ShieldQuestion, title: 'Security issues', text: 'security@pennyward.example' },
             ].map((c) => (
               <Card key={c.title} className="shadow-card">
                 <CardContent className="flex gap-3 p-4">

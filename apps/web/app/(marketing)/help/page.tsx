@@ -18,11 +18,11 @@ const topics = [
 ]
 
 const articles: [string, string, string][] = [
-  ['Getting started', 'How do I set up FinPilot for the first time?', 'Create an account, complete the seven-step onboarding (goals, preferences, accounts, data, debts, budget), and your dashboard fills in automatically. You can also load sample data to explore first.'],
+  ['Getting started', 'How do I set up Pennyward for the first time?', 'Create an account, complete the seven-step onboarding (goals, preferences, accounts, data, debts, budget), and your dashboard fills in automatically. You can also load sample data to explore first.'],
   ['CSV import', 'Which CSV formats are supported?', 'Any CSV with a date column and either a signed amount column or separate debit/credit columns. You map the columns yourself, so almost every bank export works.'],
-  ['CSV import', 'How does duplicate detection work?', 'FinPilot compares account, date, amount, and merchant text. Likely duplicates are shown for review — you can skip them, import them anyway, or inspect each one.'],
+  ['CSV import', 'How does duplicate detection work?', 'Pennyward compares account, date, amount, and merchant text. Likely duplicates are shown for review — you can skip them, import them anyway, or inspect each one.'],
   ['Budgets', 'What does “money left to assign” mean?', 'It is your expected monthly income minus the amounts budgeted across categories and your savings target. When it reaches zero, every dollar has a job.'],
-  ['Loans', 'How are extra payments applied?', 'Extra monthly payments go entirely to principal. FinPilot recalculates the schedule, showing interest saved and how many months earlier you will pay the loan off.'],
+  ['Loans', 'How are extra payments applied?', 'Extra monthly payments go entirely to principal. Pennyward recalculates the schedule, showing interest saved and how many months earlier you will pay the loan off.'],
   ['Debt payoff', 'Snowball or avalanche — which should I pick?', 'Avalanche minimizes interest by attacking the highest APR first. Snowball pays the smallest balance first for quicker wins. The planner shows both side by side so you can compare real dates and dollars.'],
   ['Accounts', 'Can I exclude an account from net worth?', 'Yes. Open the account menu and toggle “Include in net worth.” The balance still appears on the Accounts page.'],
   ['Data', 'Where is my data stored in this demo?', 'Everything is stored in your browser’s local storage. Use Settings → Data to export a JSON backup, restore it, or reset to sample data.'],
@@ -41,7 +41,7 @@ export default function Help() {
             <LifeBuoy className="h-7 w-7" />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Help center</h1>
-          <p className="mt-3 text-muted-foreground">Guides and answers for every part of FinPilot.</p>
+          <p className="mt-3 text-muted-foreground">Guides and answers for every part of Pennyward.</p>
           <div className="relative mt-6">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search help articles…" className="h-12 pl-10" />

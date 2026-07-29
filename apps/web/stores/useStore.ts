@@ -1,4 +1,4 @@
-// ─── FinPilot global store — Zustand + localStorage persistence ─────────────
+// ─── Pennyward global store — Zustand + localStorage persistence ─────────────
 // All mutations live here. To connect the future FastAPI backend, keep these
 // action signatures and swap the internals for API calls (see services/api.ts).
 import { create } from 'zustand'
@@ -14,7 +14,7 @@ import type {
   Debt, Goal, LoanScenario, OnboardingState, PayoffPlan, Transaction, UserProfile, Watchlist,
 } from '@/types'
 
-export interface FinPilotState {
+export interface PennywardState {
   signedIn: boolean
   profile: UserProfile
   settings: AppSettings
@@ -157,7 +157,7 @@ function sampleState() {
   }
 }
 
-export const useStore = create<FinPilotState>()(
+export const useStore = create<PennywardState>()(
   persist(
     (set, get) => ({
       ...sampleState(),
@@ -302,7 +302,7 @@ export const useStore = create<FinPilotState>()(
         }
       },
     }),
-    { name: 'finpilot-store-v1' },
+    { name: 'pennyward-store-v1' },
   ),
 )
 

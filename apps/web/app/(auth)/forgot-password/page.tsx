@@ -44,7 +44,7 @@ export default function ForgotPassword() {
   return (
     <AuthShell
       title="Reset your password"
-      subtitle="Enter the email you use for FinPilot and we’ll send a reset link."
+      subtitle="Enter the email you use for Pennyward and we’ll send a reset link."
       footer={<Link href="/sign-in" className="font-medium text-primary hover:underline">Back to sign in</Link>}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>

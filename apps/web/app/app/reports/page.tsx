@@ -163,7 +163,7 @@ export default function Reports() {
   const exportReport = () => {
     if (!report || !active) return
     const meta = reportCards.find((r) => r.id === active)
-    const filename = `finpilot-${active}-report-${from}-to-${to}.csv`
+    const filename = `pennyward-${active}-report-${from}-to-${to}.csv`
     if (report.kind === 'spending') {
       downloadCSV(filename, ['Category', 'Amount'], report.byCat.map((r) => [r.name, r.value]))
     } else if (report.kind === 'cashflow') {

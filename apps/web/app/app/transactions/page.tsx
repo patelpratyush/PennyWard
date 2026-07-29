@@ -142,7 +142,7 @@ function TransactionsInner() {
 
   const exportCSV = () => {
     downloadCSV(
-      `finpilot-transactions-${new Date().toISOString().slice(0, 10)}.csv`,
+      `pennyward-transactions-${new Date().toISOString().slice(0, 10)}.csv`,
       ['Date', 'Merchant', 'Account', 'Category', 'Type', 'Amount', 'Status', 'Tags'],
       filtered.map((t) => [
         t.date, t.merchant,

@@ -111,7 +111,7 @@ export default function Notifications() {
             icon={<Bell className="h-6 w-6" />}
             title={notifications.length === 0 ? 'No notifications yet' : 'Nothing here'}
             description={notifications.length === 0
-              ? 'FinPilot will surface budget alerts, bill reminders, and milestones here.'
+              ? 'Pennyward will surface budget alerts, bill reminders, and milestones here.'
               : 'Try a different filter to see more notifications.'}
           />
         ) : (

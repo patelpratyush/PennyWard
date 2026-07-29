@@ -522,7 +522,7 @@ export default function Dashboard() {
         {visible('insights') && (
           <ChartCard title="Financial insights" description="Rules-based, from your data" className="lg:col-span-1">
             {insights.length === 0 ? (
-              <EmptyState title="No insights yet" description="Insights appear as FinPilot learns your patterns." />
+              <EmptyState title="No insights yet" description="Insights appear as Pennyward learns your patterns." />
             ) : (
               <ul className="space-y-3">
                 {insights.map((ins, i) => (
