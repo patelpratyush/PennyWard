@@ -128,11 +128,21 @@ function AccountsInner() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => { setEditing(a); setDialogOpen(true) }}><Pencil className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setAdjusting(a); setAdjustValue(String(Math.abs(a.balance))) }}>Adjust balance</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => { updateAccountMut.mutate({ id: a.id, patch: { includeInNetWorth: !a.includeInNetWorth } }); toast.success(a.includeInNetWorth ? 'Excluded from net worth.' : 'Included in net worth.') }}>
+                              <DropdownMenuItem onClick={() => {
+                                updateAccountMut.mutate({ id: a.id, patch: { includeInNetWorth: !a.includeInNetWorth } }, {
+                                  onSuccess: () => toast.success(a.includeInNetWorth ? 'Excluded from net worth.' : 'Included in net worth.'),
+                                  onError: () => toast.error('Could not update this account. Please try again.'),
+                                })
+                              }}>
                                 {a.includeInNetWorth ? 'Exclude from' : 'Include in'} net worth
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => { updateAccountMut.mutate({ id: a.id, patch: { archived: true } }); toast.success('Account archived.') }}>
+                              <DropdownMenuItem onClick={() => {
+                                updateAccountMut.mutate({ id: a.id, patch: { archived: true } }, {
+                                  onSuccess: () => toast.success('Account archived.'),
+                                  onError: () => toast.error('Could not archive this account. Please try again.'),
+                                })
+                              }}>
                                 <Archive className="mr-2 h-4 w-4" />Archive
                               </DropdownMenuItem>
                               <DropdownMenuItem className="text-destructive" onClick={() => setDeleting(a)}>
@@ -168,7 +178,12 @@ function AccountsInner() {
                     <Archive className="h-4 w-4 text-muted-foreground" />
                     <span className="flex-1 text-sm">{a.name}</span>
                     <Money value={a.balance} className="text-sm text-muted-foreground" />
-                    <Button variant="ghost" size="sm" onClick={() => updateAccountMut.mutate({ id: a.id, patch: { archived: false } })}>
+                    <Button variant="ghost" size="sm" onClick={() => {
+                      updateAccountMut.mutate({ id: a.id, patch: { archived: false } }, {
+                        onSuccess: () => toast.success('Account restored.'),
+                        onError: () => toast.error('Could not restore this account. Please try again.'),
+                      })
+                    }}>
                       <ArchiveRestore className="mr-1 h-3.5 w-3.5" />Restore
                     </Button>
                   </div>
@@ -191,8 +206,10 @@ function AccountsInner() {
             <Button className="w-full" onClick={() => {
               if (adjusting) {
                 const sign = adjusting.balance < 0 ? -1 : 1
-                updateAccountMut.mutate({ id: adjusting.id, patch: { balance: round2(Math.abs(Number(adjustValue)) * sign) } })
-                toast.success('Balance updated.')
+                updateAccountMut.mutate({ id: adjusting.id, patch: { balance: round2(Math.abs(Number(adjustValue)) * sign) } }, {
+                  onSuccess: () => toast.success('Balance updated.'),
+                  onError: () => toast.error('Could not update the balance. Please try again.'),
+                })
               }
               setAdjusting(null)
             }}>Save balance</Button>
@@ -205,13 +222,20 @@ function AccountsInner() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              The account will be removed permanently. Transactions assigned to it will remain but show no account. Consider archiving instead.
+              This permanently deletes the account and every transaction linked to it — this cannot be undone. Consider archiving instead if you want to keep the transaction history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => { if (deleting) { deleteAccountMut.mutate(deleting.id); toast.success('Account deleted.') } }}>
+              onClick={() => {
+                if (deleting) {
+                  deleteAccountMut.mutate(deleting.id, {
+                    onSuccess: () => toast.success('Account deleted.'),
+                    onError: () => toast.error('Could not delete this account. Please try again.'),
+                  })
+                }
+              }}>
               Delete account
             </AlertDialogAction>
           </AlertDialogFooter>

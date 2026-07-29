@@ -274,10 +274,14 @@ function CategoriesSection() {
               </div>
             </div>
             <Button className="w-full" disabled={newCat.name.trim().length < 2} onClick={() => {
-              createCategory.mutate({ name: newCat.name.trim(), group: newCat.group, icon: newCat.icon, color: 'chart-8' })
-              toast.success('Category added.')
-              setAddOpen(false)
-              setNewCat({ name: '', group: 'Lifestyle', icon: 'shopping-bag' })
+              createCategory.mutate({ name: newCat.name.trim(), group: newCat.group, icon: newCat.icon, color: 'chart-8' }, {
+                onSuccess: () => {
+                  toast.success('Category added.')
+                  setAddOpen(false)
+                  setNewCat({ name: '', group: 'Lifestyle', icon: 'shopping-bag' })
+                },
+                onError: () => toast.error('Could not add this category. Please try again.'),
+              })
             }}>Add category</Button>
           </div>
         </DialogContent>

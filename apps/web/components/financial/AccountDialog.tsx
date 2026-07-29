@@ -61,13 +61,16 @@ export function AccountDialog({ open, onOpenChange, editing }: {
       minimumPayment: form.minimumPayment ? Number(form.minimumPayment) : undefined,
     }
     if (editing) {
-      updateAccountMut.mutate({ id: editing.id, patch: payload })
-      toast.success('Account updated.')
+      updateAccountMut.mutate({ id: editing.id, patch: payload }, {
+        onSuccess: () => { toast.success('Account updated.'); onOpenChange(false) },
+        onError: () => toast.error('Could not update this account. Please try again.'),
+      })
     } else {
-      createAccount.mutate(payload)
-      toast.success('Account added.')
+      createAccount.mutate(payload, {
+        onSuccess: () => { toast.success('Account added.'); onOpenChange(false) },
+        onError: () => toast.error('Could not add this account. Please try again.'),
+      })
     }
-    onOpenChange(false)
   }
 
   return (

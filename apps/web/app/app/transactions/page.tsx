@@ -123,8 +123,14 @@ function TransactionsInner() {
   const pageRows = filtered
   const allSelected = pageRows.length > 0 && pageRows.every((t) => selected.includes(t.id))
 
-  const updateTransaction = (id: string, patch: Partial<Transaction>) => updateTransactionMut.mutate({ id, patch })
-  const deleteTransactions = (ids: string[]) => bulkDeleteMut.mutate(ids)
+  const updateTransaction = (
+    id: string, patch: Partial<Transaction>,
+    opts?: { onSuccess?: () => void; onError?: () => void },
+  ) => updateTransactionMut.mutate({ id, patch }, opts)
+  const deleteTransactions = (
+    ids: string[],
+    opts?: { onSuccess?: () => void; onError?: () => void },
+  ) => bulkDeleteMut.mutate(ids, opts)
 
   const activeFilterCount = [accountFilter, categoryFilter, typeFilter, statusFilter, sourceFilter, dateFrom, dateTo, minAmount, maxAmount, tagFilter]
     .filter((v) => v && v !== 'all').length
@@ -149,9 +155,14 @@ function TransactionsInner() {
     toast.success(`Exported ${filtered.length} transactions to CSV.`)
   }
 
-  const bulkSetCategory = (categoryId: string) => {
-    for (const id of selected) updateTransaction(id, { categoryId })
-    toast.success(`Updated category for ${selected.length} transactions.`)
+  const bulkSetCategory = async (categoryId: string) => {
+    const count = selected.length
+    try {
+      await Promise.all(selected.map((id) => updateTransactionMut.mutateAsync({ id, patch: { categoryId } })))
+      toast.success(`Updated category for ${count} transactions.`)
+    } catch {
+      toast.error('Could not update category for all selected transactions. Please try again.')
+    }
     setSelected([])
   }
 
@@ -311,12 +322,17 @@ function TransactionsInner() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button size="sm" variant="outline" onClick={() => {
-              for (const id of selected) {
-                const t = items.find((x) => x.id === id)
-                if (t) updateTransaction(id, { tags: [...new Set([...t.tags, 'reviewed'])] })
+            <Button size="sm" variant="outline" onClick={async () => {
+              const count = selected.length
+              try {
+                await Promise.all(selected.map((id) => {
+                  const t = items.find((x) => x.id === id)
+                  return t ? updateTransactionMut.mutateAsync({ id, patch: { tags: [...new Set([...t.tags, 'reviewed'])] } }) : Promise.resolve()
+                }))
+                toast.success(`Added tag to ${count} transactions.`)
+              } catch {
+                toast.error('Could not tag all selected transactions. Please try again.')
               }
-              toast.success(`Added tag to ${selected.length} transactions.`)
               setSelected([])
             }}>Tag</Button>
             <Button size="sm" variant="destructive" onClick={() => setConfirmDelete(true)}><Trash2 className="mr-1 h-3.5 w-3.5" />Delete</Button>
@@ -431,7 +447,12 @@ function TransactionsInner() {
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => { setEditing(t); setDialogOpen(true) }}>Edit</DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => { setEditing({ ...t, splits: t.splits ?? [] }); setDialogOpen(true) }}>Split transaction</DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive" onClick={() => { deleteTransactions([t.id]); toast.success('Transaction deleted.') }}>Delete</DropdownMenuItem>
+                                  <DropdownMenuItem className="text-destructive" onClick={() => {
+                                    deleteTransactions([t.id], {
+                                      onSuccess: () => toast.success('Transaction deleted.'),
+                                      onError: () => toast.error('Could not delete this transaction. Please try again.'),
+                                    })
+                                  }}>Delete</DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -521,7 +542,12 @@ function TransactionsInner() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => { deleteTransactions(selected); setSelected([]); toast.success('Transactions deleted.') }}>
+              onClick={() => {
+                deleteTransactions(selected, {
+                  onSuccess: () => { toast.success('Transactions deleted.'); setSelected([]) },
+                  onError: () => toast.error('Could not delete these transactions. Please try again.'),
+                })
+              }}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
