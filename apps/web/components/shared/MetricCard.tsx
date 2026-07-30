@@ -29,9 +29,9 @@ export function MetricCard({
     <Card className="group h-full shadow-card transition-shadow hover:shadow-lift">
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
             {icon}
-            <span>{label}</span>
+            <span className="kicker">{label}</span>
             {tooltip && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
