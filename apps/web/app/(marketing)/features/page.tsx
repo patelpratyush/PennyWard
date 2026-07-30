@@ -1,19 +1,18 @@
 'use client'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Area, AreaChart, ResponsiveContainer } from 'recharts'
 import {
-  ArrowRight, Bell, Calculator, Car, CreditCard, FileBarChart, Goal,
+  ArrowUpRight, Bell, Calculator, Car, CreditCard, FileBarChart, Goal,
   Landmark, LineChart, PiggyBank, Receipt, ShieldCheck, TrendingUp, Wallet,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
+import '@/app/ledger.css'
 
-const spark = [
-  { v: 10 }, { v: 14 }, { v: 12 }, { v: 18 }, { v: 16 }, { v: 22 }, { v: 20 }, { v: 26 },
-]
+const reveal = (i = 0) => ({
+  initial: { opacity: 0, y: 18 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, margin: '-70px' },
+  transition: { duration: 0.55, delay: i * 0.05, ease: [0.2, 0.8, 0.3, 1] as const },
+})
 
 const sections = [
   { id: 'dashboard', icon: LineChart, title: 'Dashboard', text: 'A calm morning briefing: net worth, cash flow, budget progress, upcoming bills, goals, and rules-based insights — all in one glance.',
@@ -44,78 +43,88 @@ const sections = [
 
 export default function Features() {
   return (
-    <div className="px-4 py-16 sm:px-6">
-      <div className="mx-auto max-w-6xl">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-2xl text-center">
-          <Badge variant="secondary" className="mb-3">Product tour</Badge>
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Every tool your money needs</h1>
-          <p className="mt-3 text-muted-foreground">Twelve focused features that work together — from daily spending to long-term debt freedom.</p>
-        </motion.div>
+    <div className="ledger-grain relative">
+      <div className="ledger-rules pointer-events-none absolute inset-0 opacity-40" aria-hidden />
 
-        <div className="mt-14 space-y-6">
+      {/* ══ Masthead intro ═══════════════════════════════════════════════ */}
+      <section className="relative z-10 border-b border-[var(--rule-strong)] px-5 pb-16 pt-16 sm:px-8 sm:pt-24">
+        <div className="mx-auto max-w-[1400px]">
+          <motion.div {...reveal()}>
+            <p className="kicker flex items-center gap-3 text-[var(--ink-3)]">
+              <span className="inline-block h-px w-10 bg-[var(--rust)]" />
+              Product tour · twelve sections
+            </p>
+            <h1 className="display mt-7 max-w-3xl text-[2.75rem] leading-[0.94] sm:text-[4.25rem] lg:text-[5rem]">
+              Every tool your<br />
+              money needs<span className="display-i text-[var(--rust)]">,</span> in order.
+            </h1>
+            <p className="mt-7 max-w-xl text-[1.0625rem] leading-relaxed text-[var(--ink-2)]">
+              Twelve focused sections that work together — from daily spending to long-term
+              debt freedom. No dashboard sprawl, no feature you didn&apos;t ask for.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ══ Editorial index of sections ═════════════════════════════════ */}
+      <section className="relative z-10 px-5 py-4 sm:px-8">
+        <div className="mx-auto max-w-[1400px] border-t border-[var(--ink)]">
           {sections.map((s, i) => (
             <motion.section
               key={s.id}
               id={s.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.4 }}
-              className="scroll-mt-24"
+              {...reveal(i % 4)}
+              className="scroll-mt-24 grid gap-6 border-b border-[var(--rule)] py-12 lg:grid-cols-12 lg:gap-10"
             >
-              <Card className="overflow-hidden shadow-card">
-                <div className={`grid items-stretch md:grid-cols-2 ${i % 2 ? 'md:[&>*:first-child]:order-2' : ''}`}>
-                  <CardContent className="p-6 sm:p-8">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <s.icon className="h-5 w-5" />
-                    </div>
-                    <h2 className="mt-4 text-xl font-bold">{s.title}</h2>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.text}</p>
-                    <ul className="mt-4 space-y-2">
-                      {s.bullets.map((b) => (
-                        <li key={b} className="flex items-start gap-2 text-sm">
-                          <Goal className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                          {b}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                  {/* Coded UI preview */}
-                  <div className="flex items-center justify-center border-t bg-muted/40 p-6 md:border-l md:border-t-0">
-                    <Card className="w-full max-w-sm shadow-none">
-                      <CardContent className="space-y-3 p-5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-muted-foreground">{s.title} preview</span>
-                          <Badge variant="secondary" className="text-[10px]">Live UI</Badge>
-                        </div>
-                        <div className="text-2xl font-bold tnum">{['$4,820.40', '$1,330 left', '$46,970', '53%'][i % 4]}</div>
-                        <Progress value={[72, 53, 41, 66][i % 4]} className="h-2" />
-                        <div className="h-16">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={spark}>
-                              <Area type="monotone" dataKey="v" stroke="hsl(var(--chart-1))" fill="hsl(var(--chart-1)/0.15)" strokeWidth={2} />
-                            </AreaChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="flex gap-2">
-                          <div className="h-2 flex-1 rounded bg-muted" />
-                          <div className="h-2 w-1/3 rounded bg-muted" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+              <div className="lg:col-span-1">
+                <span className="fig text-sm text-[var(--ink-3)]">{String(i + 1).padStart(2, '0')}</span>
+              </div>
+
+              <div className="lg:col-span-6">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center border border-[var(--ink)] text-[var(--ink)]">
+                    <s.icon className="h-4 w-4" strokeWidth={1.75} />
+                  </span>
+                  <h2 className="display text-[2rem] leading-none sm:text-[2.5rem]">{s.title}</h2>
                 </div>
-              </Card>
+                <p className="mt-5 max-w-xl leading-relaxed text-[var(--ink-2)]">{s.text}</p>
+              </div>
+
+              <div className="lg:col-span-5">
+                <ul className="space-y-3 border-l border-[var(--rule-strong)] pl-5">
+                  {s.bullets.map((b) => (
+                    <li key={b} className="flex items-start gap-2.5 text-sm leading-relaxed text-[var(--ink-2)]">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[var(--lime-deep)]" aria-hidden />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </motion.section>
           ))}
         </div>
+      </section>
 
-        <div className="mt-14 text-center">
-          <Button asChild size="lg">
-            <Link href="/sign-up">Start for free <ArrowRight className="ml-1.5 h-4 w-4" /></Link>
-          </Button>
-        </div>
-      </div>
+      {/* ══ Closing CTA ═══════════════════════════════════════════════════ */}
+      <section className="relative z-10 bg-[var(--ink)] px-5 py-24 text-center text-[var(--paper)] sm:px-8">
+        <motion.div {...reveal()} className="mx-auto max-w-xl">
+          <p className="kicker text-[var(--lime)]">Ready when you are</p>
+          <h2 className="display mt-6 text-[2.5rem] leading-[0.94] sm:text-[3.25rem]">
+            Twelve tools.<br /><span className="display-i text-[var(--lime)]">One account.</span>
+          </h2>
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
+            <Link href="/sign-up" className="btn-lime">
+              Start for free <ArrowUpRight className="h-4 w-4" strokeWidth={2.5} />
+            </Link>
+            <Link
+              href="/pricing"
+              className="btn-ghost !border-[var(--paper-3)] !text-[var(--paper)] hover:!bg-[var(--paper)] hover:!text-[var(--ink)]"
+            >
+              See pricing
+            </Link>
+          </div>
+        </motion.div>
+      </section>
     </div>
   )
 }

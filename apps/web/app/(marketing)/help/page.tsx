@@ -1,10 +1,8 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { Calculator, CreditCard, FileUp, Goal, Landmark, LifeBuoy, PiggyBank, Receipt, Search, Wallet } from 'lucide-react'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { motion } from 'framer-motion'
+import { Calculator, CreditCard, FileUp, Goal, Landmark, PiggyBank, Receipt, Search, Wallet } from 'lucide-react'
 
 const topics = [
   { icon: Receipt, title: 'Transactions', desc: 'Adding, editing, splitting, and importing transactions.' },
@@ -34,49 +32,86 @@ export default function Help() {
     `${t} ${q} ${a}`.toLowerCase().includes(query.toLowerCase()))
 
   return (
-    <div className="px-4 py-16 sm:px-6">
-      <div className="mx-auto max-w-4xl">
-        <div className="mx-auto max-w-xl text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <LifeBuoy className="h-7 w-7" />
+    <div className="px-5 py-20 sm:px-8">
+      <div className="mx-auto max-w-[1100px]">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.2, 0.8, 0.3, 1] }}
+        >
+          <div className="kicker flex items-center gap-3 text-[var(--ink-3)]">
+            <span className="inline-block h-px w-10 bg-[var(--rust)]" />
+            Help center
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Help center</h1>
-          <p className="mt-3 text-muted-foreground">Guides and answers for every part of Pennyward.</p>
-          <div className="relative mt-6">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search help articles…" className="h-12 pl-10" />
+          <h1 className="display mt-6 text-[2.75rem] leading-[0.96] sm:text-[3.75rem]">
+            Guides &amp; <span className="display-i">answers.</span>
+          </h1>
+          <p className="mt-6 max-w-xl text-[1.0625rem] leading-relaxed text-[var(--ink-2)]">
+            Every part of Pennyward, indexed.
+          </p>
+
+          <div className="relative mt-9 max-w-lg border-b border-[var(--rule-strong)] focus-within:border-[var(--ink)]">
+            <Search className="pointer-events-none absolute left-0 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ink-3)]" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search help articles…"
+              className="fig w-full border-0 bg-transparent py-3 pl-7 text-[0.9375rem] outline-none placeholder:text-[var(--ink-3)]"
+            />
           </div>
-        </div>
+        </motion.div>
 
         {!query && (
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {topics.map((t) => (
-              <Card key={t.title} className="shadow-card transition-shadow hover:shadow-lift">
-                <CardContent className="p-4">
-                  <t.icon className="h-5 w-5 text-primary" />
-                  <h2 className="mt-2 text-sm font-semibold">{t.title}</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">{t.desc}</p>
-                </CardContent>
-              </Card>
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true, margin: '-70px' }}
+            transition={{ duration: 0.5 }}
+            className="mt-14 grid gap-x-8 border-t border-[var(--rule-strong)] sm:grid-cols-2 lg:grid-cols-4"
+          >
+            {topics.map((t, i) => (
+              <div
+                key={t.title}
+                className={`border-b border-[var(--rule)] py-6 pr-4 ${i % 2 === 0 ? 'sm:border-r sm:border-[var(--rule)] sm:pr-8' : 'sm:pl-8'} ${i % 4 !== 0 ? 'lg:border-l lg:border-[var(--rule)] lg:pl-8' : ''}`}
+              >
+                <t.icon className="h-4 w-4 text-[var(--rust)]" strokeWidth={2} />
+                <h2 className="display mt-3 text-[1.25rem] leading-tight">{t.title}</h2>
+                <p className="mt-1.5 text-sm leading-relaxed text-[var(--ink-3)]">{t.desc}</p>
+              </div>
             ))}
-          </div>
+          </motion.div>
         )}
 
-        <div className="mt-12">
-          <h2 className="text-xl font-bold">{query ? `Results for “${query}”` : 'Popular articles'}</h2>
+        <div className="mt-16">
+          <p className="kicker text-[var(--ink-3)]">
+            {query ? `Results for "${query}"` : 'Popular articles'}
+          </p>
           {filtered.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">No articles matched. Try a different search, or <Link href="/contact" className="text-primary hover:underline">contact us</Link>.</p>
+            <p className="mt-6 text-sm text-[var(--ink-2)]">
+              No articles matched. Try a different search, or{' '}
+              <Link href="/contact" className="border-b border-[var(--ink)] text-[var(--ink)] hover:border-[var(--rust)] hover:text-[var(--rust)]">
+                contact us
+              </Link>.
+            </p>
           ) : (
-            <Accordion type="single" collapsible className="mt-4">
+            <div className="mt-4 border-b border-[var(--rule)]">
               {filtered.map(([topic, q, a], i) => (
-                <AccordionItem key={i} value={`art-${i}`}>
-                  <AccordionTrigger className="text-left text-sm font-medium">
-                    <span><span className="mr-2 rounded bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{topic}</span>{q}</span>
-                  </AccordionTrigger>
-                  <AccordionContent className="text-sm text-muted-foreground">{a}</AccordionContent>
-                </AccordionItem>
+                <details key={`${topic}-${i}`} className="faq-item group">
+                  <summary>
+                    <span className="fig text-sm text-[var(--ink-3)]">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="flex-1">
+                      <span className="kicker mr-3 text-[var(--rust)]">{topic}</span>
+                      <span className="faq-q display text-[1.25rem] leading-snug transition-colors sm:text-[1.375rem]">
+                        {q}
+                      </span>
+                    </span>
+                  </summary>
+                  <p className="faq-answer max-w-2xl pb-6 pl-[2.4rem] text-[0.9375rem] leading-relaxed text-[var(--ink-2)]">
+                    {a}
+                  </p>
+                </details>
               ))}
-            </Accordion>
+            </div>
           )}
         </div>
       </div>
