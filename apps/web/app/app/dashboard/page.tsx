@@ -174,7 +174,7 @@ export default function Dashboard() {
     return (
       <div>
         <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">{greeting}, {profile.preferredName}</h1>
+          <h1 className="display text-[1.875rem] leading-none">{greeting}, {profile.preferredName}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Here is your financial overview for {formatMonth(now)}.</p>
         </div>
         <LoadingSkeleton rows={6} />
@@ -186,7 +186,7 @@ export default function Dashboard() {
     return (
       <div>
         <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">{greeting}, {profile.preferredName}</h1>
+          <h1 className="display text-[1.875rem] leading-none">{greeting}, {profile.preferredName}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Here is your financial overview for {formatMonth(now)}.</p>
         </div>
         <EmptyState
@@ -204,7 +204,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{greeting}, {profile.preferredName}</h1>
+          <h1 className="display text-[1.875rem] leading-none">{greeting}, {profile.preferredName}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Here is your financial overview for {formatMonth(now)}.</p>
         </div>
         <div className="flex items-center gap-2">

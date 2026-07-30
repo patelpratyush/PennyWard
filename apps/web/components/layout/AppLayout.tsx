@@ -97,10 +97,10 @@ function NotificationsMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="flex items-center justify-between">
+        <DropdownMenuLabel className="kicker flex items-center justify-between text-muted-foreground">
           Notifications
           {unread > 0 && (
-            <button className="text-xs font-medium text-primary hover:underline" onClick={markAll}>
+            <button className="font-mono text-[10px] font-medium normal-case tracking-normal text-primary hover:underline" onClick={markAll}>
               Mark all read
             </button>
           )}
@@ -238,7 +238,7 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed?: boolean; onNavi
         </Link>
       </div>
       <ScrollArea className="flex-1 px-3 py-4">
-        <nav className="space-y-1" aria-label="Main navigation">
+        <nav className="space-y-0.5" aria-label="Main navigation">
           {navItems.map((item) => {
             const isActive = pathname === item.to || pathname.startsWith(`${item.to}/`)
             return (
@@ -247,9 +247,9 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed?: boolean; onNavi
                 href={item.to}
                 onClick={onNavigate}
                 className={cn(
-                  'flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                  isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
-                  collapsed && 'justify-center px-0',
+                  'flex h-10 items-center gap-3 border-l-2 border-transparent px-3 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
+                  isActive && 'border-l-[var(--lime-deep)] bg-sidebar-accent text-sidebar-accent-foreground',
+                  collapsed && 'justify-center border-l-0 px-0',
                 )}
               >
                 <item.icon className="h-[18px] w-[18px] shrink-0" />
@@ -260,11 +260,11 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed?: boolean; onNavi
         </nav>
       </ScrollArea>
       {!collapsed && (
-        <div className="border-t p-4">
-          <div className="rounded-xl bg-accent p-3">
-            <p className="text-xs font-semibold text-accent-foreground">Pro plan</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">CSV imports, unlimited budgets & scenarios.</p>
-            <Button asChild size="sm" variant="outline" className="mt-2 h-8 w-full text-xs">
+        <div className="border-t border-border p-4">
+          <div className="border border-border bg-card p-3">
+            <p className="kicker text-[var(--rust)]">Pro plan</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">CSV imports, unlimited budgets &amp; scenarios.</p>
+            <Button asChild size="sm" variant="outline" className="mt-2.5 h-8 w-full font-mono text-[11px] uppercase tracking-wide">
               <Link href="/app/settings/subscription">Manage plan</Link>
             </Button>
           </div>
@@ -321,11 +321,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Button>
 
           {/* Breadcrumbs */}
-          <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-sm text-muted-foreground md:flex">
+          <nav aria-label="Breadcrumb" className="kicker hidden items-center gap-1.5 text-muted-foreground md:flex">
             {crumbs.map((c, i) => (
-              <span key={i} className="flex items-center gap-1">
-                {i > 0 && <ChevronRight className="h-3.5 w-3.5" />}
-                <span className={cn(i === crumbs.length - 1 && 'font-medium text-foreground')}>{c}</span>
+              <span key={i} className="flex items-center gap-1.5">
+                {i > 0 && <span className="text-[var(--rule-strong)]">/</span>}
+                <span className={cn(i === crumbs.length - 1 && 'text-foreground')}>{c}</span>
               </span>
             ))}
           </nav>
@@ -333,12 +333,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="ml-auto flex items-center gap-1.5">
             <button
               onClick={() => setSearchOpen(true)}
-              className="hidden h-9 items-center gap-2 rounded-lg border bg-muted/50 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted sm:flex sm:w-52 lg:w-64"
+              className="hidden h-9 items-center gap-2 border border-border bg-card px-3 text-sm text-muted-foreground transition-colors hover:bg-muted sm:flex sm:w-52 lg:w-64"
               aria-label="Open global search"
             >
               <Search className="h-4 w-4" />
               <span className="flex-1 text-left">Search…</span>
-              <kbd className="rounded border bg-background px-1.5 text-[10px] font-semibold">⌘K</kbd>
+              <kbd className="border border-border bg-background px-1.5 font-mono text-[10px] font-semibold">⌘K</kbd>
             </button>
             <Button variant="ghost" size="icon" className="h-9 w-9 sm:hidden" aria-label="Search" onClick={() => setSearchOpen(true)}>
               <Search className="h-5 w-5" />
@@ -352,7 +352,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Quick add</DropdownMenuLabel>
+                <DropdownMenuLabel className="kicker text-muted-foreground">Quick add</DropdownMenuLabel>
                 {quickAdd.map((q) => (
                   <DropdownMenuItem key={q.label} onClick={() => router.push(q.to)}>
                     <q.icon className="mr-2 h-4 w-4 text-muted-foreground" />{q.label}
@@ -377,12 +377,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <p className="text-sm font-semibold">{profile.fullName}</p>
-                  <p className="text-xs font-normal text-muted-foreground">{profile.email}</p>
+                  <p className="mt-0.5 font-mono text-xs font-normal text-muted-foreground">{profile.email}</p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/app/settings/profile')}><User className="mr-2 h-4 w-4" />Profile</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push('/app/settings/subscription')}>
-                  <Badge variant="secondary" className="mr-2 text-[10px]">PRO</Badge>Subscription
+                  <Badge variant="secondary" className="mr-2 font-mono text-[10px] uppercase tracking-wide">Pro</Badge>Subscription
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
@@ -401,7 +401,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
 
         {/* Mobile bottom navigation */}
-        <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t bg-background/95 backdrop-blur lg:hidden" aria-label="Mobile navigation">
+        <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-border bg-background/95 backdrop-blur lg:hidden" aria-label="Mobile navigation">
           {bottomNav.map((item) => {
             const isActive = pathname === item.to || pathname.startsWith(`${item.to}/`)
             return (
@@ -409,8 +409,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 key={item.to}
                 href={item.to}
                 className={cn(
-                  'flex min-w-[44px] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-muted-foreground',
-                  isActive && 'text-primary',
+                  'flex min-w-[44px] flex-1 flex-col items-center justify-center gap-1 border-t-2 border-transparent font-mono text-[10px] font-medium uppercase tracking-wide text-muted-foreground',
+                  isActive && 'border-t-[var(--lime-deep)] text-foreground',
                 )}
               >
                 <item.icon className="h-5 w-5" />

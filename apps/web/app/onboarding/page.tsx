@@ -140,17 +140,18 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="flex h-16 items-center justify-between px-4 sm:px-6">
+    <div className="min-h-screen bg-background">
+      <header className="flex h-16 items-center justify-between border-b border-border px-4 sm:px-6">
         <Logo />
-        <Button variant="ghost" size="sm" onClick={() => { store.completeOnboarding(); router.push('/app/dashboard') }}>
+        <Button variant="ghost" size="sm" className="font-mono text-xs uppercase tracking-wide" onClick={() => { store.completeOnboarding(); router.push('/app/dashboard') }}>
           Skip setup <X className="ml-1 h-4 w-4" />
         </Button>
       </header>
 
       {/* Progress stepper */}
-      <div className="mx-auto max-w-3xl px-4">
-        <ol className="flex items-center" aria-label="Setup progress">
+      <div className="mx-auto max-w-3xl px-4 pt-6">
+        <p className="kicker text-muted-foreground">Account opening — step {step} of {stepTitles.length}</p>
+        <ol className="mt-3 flex items-center" aria-label="Setup progress">
           {stepTitles.map((t, i) => {
             const n = i + 1
             const done = n < step
@@ -161,19 +162,19 @@ export default function Onboarding() {
                   <motion.div
                     animate={{ scale: active ? 1.08 : 1 }}
                     className={cn(
-                      'flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors',
+                      'flex h-8 w-8 items-center justify-center border font-mono text-xs font-semibold transition-colors',
                       done && 'border-primary bg-primary text-primary-foreground',
-                      active && 'border-primary bg-background text-primary',
+                      active && 'border-[var(--lime-deep)] bg-background text-foreground ring-1 ring-[var(--lime-deep)]',
                       !done && !active && 'border-border bg-background text-muted-foreground',
                     )}
                   >
                     {done ? <Check className="h-4 w-4" /> : n}
                   </motion.div>
-                  <span className={cn('hidden text-[11px] font-medium sm:block', active ? 'text-foreground' : 'text-muted-foreground')}>{t}</span>
+                  <span className={cn('hidden font-mono text-[10px] uppercase tracking-wide sm:block', active ? 'text-foreground' : 'text-muted-foreground')}>{t}</span>
                 </div>
                 {n < 7 && (
-                  <div className="mx-2 mb-0 h-0.5 flex-1 rounded bg-border sm:mb-5">
-                    <motion.div className="h-full rounded bg-primary" animate={{ width: done ? '100%' : '0%' }} transition={{ duration: 0.3 }} />
+                  <div className="mx-2 mb-0 h-px flex-1 bg-border sm:mb-5">
+                    <motion.div className="h-full bg-[var(--lime-deep)]" animate={{ width: done ? '100%' : '0%' }} transition={{ duration: 0.3 }} />
                   </div>
                 )}
               </li>
@@ -194,7 +195,7 @@ export default function Onboarding() {
             {/* STEP 1 — goals */}
             {step === 1 && (
               <div>
-                <h1 className="text-2xl font-bold">What would you like Pennyward to help with?</h1>
+                <h1 className="display text-[2rem] sm:text-[2.35rem]">What would you like Pennyward to help with?</h1>
                 <p className="mt-1 text-sm text-muted-foreground">Choose all that apply — we’ll tailor your dashboard.</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   {goalOptions.map((g) => {
@@ -204,13 +205,13 @@ export default function Onboarding() {
                         key={g}
                         onClick={() => setGoals(selected ? goals.filter((x) => x !== g) : [...goals, g])}
                         className={cn(
-                          'flex min-h-[52px] items-center justify-between rounded-xl border bg-card px-4 py-3 text-left text-sm font-medium transition-all hover:shadow-card',
-                          selected && 'border-primary bg-accent ring-1 ring-primary',
+                          'flex min-h-[52px] items-center justify-between border border-border bg-card px-4 py-3 text-left text-sm font-medium transition-all hover:shadow-card',
+                          selected && 'border-[var(--lime-deep)] bg-accent ring-1 ring-[var(--lime-deep)]',
                         )}
                         aria-pressed={selected}
                       >
                         {g}
-                        <span className={cn('flex h-5 w-5 items-center justify-center rounded-full border', selected && 'border-primary bg-primary text-primary-foreground')}>
+                        <span className={cn('flex h-5 w-5 items-center justify-center rounded-full border border-border', selected && 'border-[var(--lime-deep)] bg-[var(--lime-deep)] text-[var(--ink-hard)]')}>
                           {selected && <Check className="h-3 w-3" />}
                         </span>
                       </button>
@@ -223,7 +224,7 @@ export default function Onboarding() {
             {/* STEP 2 — preferences */}
             {step === 2 && (
               <div>
-                <h1 className="text-2xl font-bold">Your preferences</h1>
+                <h1 className="display text-[2rem] sm:text-[2.35rem]">Your preferences</h1>
                 <p className="mt-1 text-sm text-muted-foreground">You can change any of these later in Settings.</p>
                 <Card className="mt-6 shadow-card">
                   <CardContent className="grid gap-4 p-6 sm:grid-cols-2">
@@ -289,12 +290,12 @@ export default function Onboarding() {
             {/* STEP 3 — accounts */}
             {step === 3 && (
               <div>
-                <h1 className="text-2xl font-bold">Add your accounts</h1>
+                <h1 className="display text-[2rem] sm:text-[2.35rem]">Add your accounts</h1>
                 <p className="mt-1 text-sm text-muted-foreground">Pick account types and enter rough balances — estimates are fine.</p>
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
                   {accountTypes.map((t) => (
                     <button key={t.type} onClick={() => addAccountDraft(t.type, t.label)}
-                      className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-xl border bg-card p-3 text-center transition-all hover:border-primary hover:shadow-card">
+                      className="flex min-h-[88px] flex-col items-center justify-center gap-2 border border-border bg-card p-3 text-center transition-all hover:border-[var(--lime-deep)] hover:shadow-card">
                       <t.icon className="h-5 w-5 text-primary" />
                       <span className="text-xs font-medium">{t.label}</span>
                     </button>
@@ -325,7 +326,7 @@ export default function Onboarding() {
             {/* STEP 4 — data */}
             {step === 4 && (
               <div>
-                <h1 className="text-2xl font-bold">Add your financial data</h1>
+                <h1 className="display text-[2rem] sm:text-[2.35rem]">Add your financial data</h1>
                 <p className="mt-1 text-sm text-muted-foreground">How would you like to bring in transactions?</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   {[
@@ -335,7 +336,7 @@ export default function Onboarding() {
                     { id: 'skip', icon: ArrowRight, title: 'Skip for now', desc: 'Start with a clean slate.' },
                   ].map((o) => (
                     <button key={o.id} onClick={() => setDataChoice(o.id)}
-                      className={cn('flex min-h-[96px] items-start gap-3 rounded-xl border bg-card p-4 text-left transition-all hover:shadow-card', dataChoice === o.id && 'border-primary bg-accent ring-1 ring-primary')}
+                      className={cn('flex min-h-[96px] items-start gap-3 border border-border bg-card p-4 text-left transition-all hover:shadow-card', dataChoice === o.id && 'border-[var(--lime-deep)] bg-accent ring-1 ring-[var(--lime-deep)]')}
                       aria-pressed={dataChoice === o.id}>
                       <o.icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                       <span>
@@ -361,7 +362,7 @@ export default function Onboarding() {
             {/* STEP 5 — debts */}
             {step === 5 && (
               <div>
-                <h1 className="text-2xl font-bold">Add your debts</h1>
+                <h1 className="display text-[2rem] sm:text-[2.35rem]">Add your debts</h1>
                 <p className="mt-1 text-sm text-muted-foreground">Credit cards, loans, anything you owe. Add as many as you like.</p>
                 <Button variant="outline" className="mt-4" onClick={() => setDebts([...debts, { name: '', type: 'credit_card', balance: 0, apr: 0, minimumPayment: 0, dueDay: 1 }])}>
                   <Plus className="mr-1.5 h-4 w-4" />Add a debt
@@ -426,7 +427,7 @@ export default function Onboarding() {
             {/* STEP 6 — budget */}
             {step === 6 && (
               <div>
-                <h1 className="text-2xl font-bold">Create your first budget</h1>
+                <h1 className="display text-[2rem] sm:text-[2.35rem]">Create your first budget</h1>
                 <p className="mt-1 text-sm text-muted-foreground">Adjust these common categories to fit your month.</p>
                 <Card className="mt-6 shadow-card">
                   <CardContent className="p-6">
@@ -436,18 +437,18 @@ export default function Onboarding() {
                         <Input id="income" type="number" value={income} onChange={(e) => setIncome(Number(e.target.value))} className="mt-1" />
                       </div>
                       <div className="flex flex-col justify-end">
-                        <p className="text-xs text-muted-foreground">Budgeted</p>
+                        <p className="kicker text-muted-foreground">Budgeted</p>
                         <p className="text-lg font-bold tnum">{formatCurrency(budgetedTotal, { decimals: 0 })}</p>
                       </div>
                       <div className="flex flex-col justify-end">
-                        <p className="text-xs text-muted-foreground">Left to assign (after $800 savings target)</p>
+                        <p className="kicker text-muted-foreground">Left to assign (after $800 savings target)</p>
                         <p className={cn('text-lg font-bold tnum', leftToAssign < 0 && 'text-destructive')}>{formatCurrency(leftToAssign, { decimals: 0 })}</p>
                       </div>
                     </div>
                     <div className="mt-4 space-y-2">
                       {budgetPresets.map((b) => (
-                        <div key={b.categoryName} className="flex items-center gap-3">
-                          <span className="flex-1 text-sm">{b.label}</span>
+                        <div key={b.categoryName} className="leader">
+                          <span className="text-sm">{b.label}</span>
                           <Input
                             type="number" className="w-28 text-right" value={budgetValues[b.categoryName] || ''}
                             onChange={(e) => setBudgetValues({ ...budgetValues, [b.categoryName]: Number(e.target.value) })}
@@ -472,7 +473,7 @@ export default function Onboarding() {
                 >
                   <CheckCircle2 className="h-10 w-10 text-success" />
                 </motion.div>
-                <h1 className="mt-5 text-2xl font-bold">You’re all set{prefs.preferredName ? `, ${prefs.preferredName}` : ''}.</h1>
+                <h1 className="display mt-5 text-[2rem] sm:text-[2.35rem]">You’re all set{prefs.preferredName ? `, ${prefs.preferredName}` : ''}.</h1>
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Here’s what we’ll prepare on your dashboard:</p>
                 <div className="mx-auto mt-6 grid max-w-lg gap-3 text-left sm:grid-cols-2">
                   {[
@@ -500,7 +501,7 @@ export default function Onboarding() {
 
       {/* Footer nav */}
       {step < 7 && (
-        <footer className="fixed inset-x-0 bottom-0 border-t bg-background/95 backdrop-blur">
+        <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-background/95 backdrop-blur">
           <div className="mx-auto flex h-18 max-w-3xl items-center justify-between px-4 py-3">
             <Button variant="ghost" onClick={() => go(Math.max(1, step - 1))} disabled={step === 1}>
               <ArrowLeft className="mr-1.5 h-4 w-4" />Back
