@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-archivo);
+  --font-serif: var(--font-instrument-serif);
+  --font-mono: var(--font-jetbrains-mono);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -58,9 +59,10 @@
   --radius-sm: calc(var(--radius) - 4px);
   --radius-xs: calc(var(--radius) - 6px);
 
-  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
-  --shadow-lift: 0 8px 24px -8px rgb(16 24 40 / 0.18);
+  /* Ledger shadows: hard offsets like a stacked paper slip, not soft blur */
+  --shadow-xs: 0 1px 0 0 var(--rule);
+  --shadow-card: 2px 2px 0 0 var(--rule-strong);
+  --shadow-lift: 4px 4px 0 0 var(--ink-hard);
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
@@ -96,107 +98,143 @@
 }
 
 :root {
-  /* Pennyward light theme — warm white background, indigo primary */
-  --background: hsl(240 20% 99%);
-  --foreground: hsl(233 30% 12%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(233 30% 12%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(233 30% 12%);
-  --primary: hsl(243 75% 59%);
-  --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(240 14% 96%);
-  --secondary-foreground: hsl(233 30% 18%);
-  --muted: hsl(240 14% 96%);
-  --muted-foreground: hsl(234 12% 46%);
-  --accent: hsl(243 60% 96%);
-  --accent-foreground: hsl(243 75% 42%);
-  --destructive: hsl(355 72% 51%);
-  --destructive-foreground: hsl(0 0% 100%);
-  --border: hsl(240 13% 91%);
-  --input: hsl(240 13% 88%);
-  --ring: hsl(243 75% 59%);
-  --radius: 0.875rem;
+  /* ─── Pennyward "ledger" light theme ──────────────────────────────────────
+     Warm paper and ink, lime highlight, rust for debt, moss for gains.
+     App surfaces sit a few points lighter than the marketing cream so dense
+     tables stay legible; marketing opts into the deeper stock via .ledger. */
 
-  --success: hsl(152 62% 34%);
-  --success-foreground: hsl(0 0% 100%);
-  --success-muted: hsl(152 45% 94%);
-  --warning: hsl(36 92% 42%);
-  --warning-foreground: hsl(0 0% 100%);
-  --warning-muted: hsl(40 90% 94%);
-  --info: hsl(210 90% 48%);
-  --info-foreground: hsl(0 0% 100%);
-  --info-muted: hsl(210 80% 95%);
+  /* Raw ledger palette — referenced by shadows and utilities below */
+  --paper-deep: hsl(42 48% 92%);
+  --paper-mid: hsl(42 38% 88%);
+  --paper-edge: hsl(43 31% 82%);
+  --ink-hard: hsl(38 21% 7%);
+  --ink-mid: hsl(37 19% 22%);
+  --ink-soft: hsl(36 13% 37%);
+  --lime: hsl(74 88% 68%);
+  --lime-deep: hsl(74 70% 55%);
+  --rust: hsl(10 66% 45%);
+  --moss: hsl(152 39% 30%);
+  --rule: hsl(38 20% 7% / 0.14);
+  --rule-strong: hsl(38 20% 7% / 0.28);
 
-  --chart-1: hsl(243 75% 59%);
-  --chart-2: hsl(210 90% 48%);
-  --chart-3: hsl(152 62% 38%);
-  --chart-4: hsl(36 92% 48%);
-  --chart-5: hsl(355 72% 55%);
-  --chart-6: hsl(280 60% 55%);
-  --chart-7: hsl(180 60% 38%);
-  --chart-8: hsl(220 15% 55%);
+  --background: hsl(41 42% 96%);
+  --foreground: hsl(38 21% 9%);
+  --card: hsl(44 50% 98%);
+  --card-foreground: hsl(38 21% 9%);
+  --popover: hsl(44 50% 98%);
+  --popover-foreground: hsl(38 21% 9%);
+  /* Ink, not indigo — filled buttons read as stamped, matching .btn-ink */
+  --primary: hsl(38 21% 10%);
+  --primary-foreground: hsl(44 44% 95%);
+  --secondary: hsl(42 34% 91%);
+  --secondary-foreground: hsl(37 19% 18%);
+  --muted: hsl(42 30% 92%);
+  --muted-foreground: hsl(36 13% 37%);
+  --accent: hsl(74 70% 88%);
+  --accent-foreground: hsl(74 60% 20%);
+  --destructive: hsl(10 66% 45%);
+  --destructive-foreground: hsl(44 44% 96%);
+  --border: hsl(40 22% 84%);
+  --input: hsl(40 20% 78%);
+  --ring: hsl(38 21% 20%);
+  /* Square-cornered: the ledger look is hairline boxes, not pills */
+  --radius: 0.125rem;
 
-  --sidebar-background: hsl(0 0% 100%);
-  --sidebar-foreground: hsl(233 20% 26%);
-  --sidebar-primary: hsl(243 75% 59%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(243 60% 96%);
-  --sidebar-accent-foreground: hsl(243 75% 40%);
-  --sidebar-border: hsl(240 13% 92%);
-  --sidebar-ring: hsl(243 75% 59%);
+  --success: hsl(152 39% 30%);
+  --success-foreground: hsl(44 44% 96%);
+  --success-muted: hsl(152 30% 90%);
+  --warning: hsl(30 70% 38%);
+  --warning-foreground: hsl(44 44% 96%);
+  --warning-muted: hsl(38 55% 90%);
+  --info: hsl(200 45% 34%);
+  --info-foreground: hsl(44 44% 96%);
+  --info-muted: hsl(200 35% 90%);
+
+  /* Charts: ink-led with the ledger accents, so data reads on paper */
+  --chart-1: hsl(10 66% 45%);
+  --chart-2: hsl(200 45% 38%);
+  --chart-3: hsl(152 39% 32%);
+  --chart-4: hsl(30 70% 45%);
+  --chart-5: hsl(74 60% 42%);
+  --chart-6: hsl(280 28% 45%);
+  --chart-7: hsl(180 30% 34%);
+  --chart-8: hsl(37 15% 45%);
+
+  --sidebar-background: hsl(42 40% 93%);
+  --sidebar-foreground: hsl(37 19% 24%);
+  --sidebar-primary: hsl(38 21% 10%);
+  --sidebar-primary-foreground: hsl(44 44% 95%);
+  --sidebar-accent: hsl(74 70% 85%);
+  --sidebar-accent-foreground: hsl(74 60% 18%);
+  --sidebar-border: hsl(40 22% 82%);
+  --sidebar-ring: hsl(38 21% 20%);
 }
 
 :root[data-theme="dark"],
 .dark {
-  /* Pennyward dark theme — deep navy charcoal */
-  --background: hsl(231 28% 8%);
-  --foreground: hsl(240 20% 96%);
-  --card: hsl(231 24% 11%);
-  --card-foreground: hsl(240 20% 96%);
-  --popover: hsl(231 24% 12%);
-  --popover-foreground: hsl(240 20% 96%);
-  --primary: hsl(237 85% 72%);
-  --primary-foreground: hsl(240 40% 10%);
-  --secondary: hsl(231 16% 17%);
-  --secondary-foreground: hsl(240 20% 92%);
-  --muted: hsl(231 16% 16%);
-  --muted-foreground: hsl(235 14% 62%);
-  --accent: hsl(237 40% 20%);
-  --accent-foreground: hsl(237 85% 80%);
-  --destructive: hsl(355 70% 58%);
-  --destructive-foreground: hsl(0 0% 100%);
-  --border: hsl(232 16% 19%);
-  --input: hsl(232 16% 24%);
-  --ring: hsl(237 85% 72%);
+  /* ─── Ledger dark theme — warm ink stock, lime highlight ─────────────────
+     Warm-black rather than navy, so it reads as the same material as the
+     light theme's paper viewed under lamplight. */
+  --paper-deep: hsl(38 12% 14%);
+  --paper-mid: hsl(38 12% 18%);
+  --paper-edge: hsl(38 10% 26%);
+  --ink-hard: hsl(40 30% 92%);
+  --ink-mid: hsl(40 18% 74%);
+  --ink-soft: hsl(38 12% 58%);
+  --lime: hsl(74 82% 62%);
+  --lime-deep: hsl(74 70% 52%);
+  --rust: hsl(10 72% 58%);
+  --moss: hsl(152 42% 52%);
+  --rule: hsl(40 30% 92% / 0.16);
+  --rule-strong: hsl(40 30% 92% / 0.32);
 
-  --success: hsl(152 55% 48%);
-  --success-foreground: hsl(150 60% 8%);
-  --success-muted: hsl(152 40% 15%);
-  --warning: hsl(38 90% 55%);
-  --warning-foreground: hsl(40 60% 10%);
-  --warning-muted: hsl(38 50% 16%);
-  --info: hsl(210 90% 62%);
-  --info-foreground: hsl(210 60% 10%);
-  --info-muted: hsl(210 50% 17%);
+  --background: hsl(38 14% 9%);
+  --foreground: hsl(40 30% 92%);
+  --card: hsl(38 12% 12%);
+  --card-foreground: hsl(40 30% 92%);
+  --popover: hsl(38 12% 13%);
+  --popover-foreground: hsl(40 30% 92%);
+  --primary: hsl(74 82% 62%);
+  --primary-foreground: hsl(38 30% 10%);
+  --secondary: hsl(38 10% 18%);
+  --secondary-foreground: hsl(40 26% 88%);
+  --muted: hsl(38 10% 17%);
+  --muted-foreground: hsl(38 12% 60%);
+  --accent: hsl(74 30% 22%);
+  --accent-foreground: hsl(74 80% 74%);
+  --destructive: hsl(10 72% 58%);
+  --destructive-foreground: hsl(38 30% 10%);
+  --border: hsl(38 10% 21%);
+  --input: hsl(38 10% 27%);
+  --ring: hsl(74 82% 62%);
 
-  --chart-1: hsl(237 85% 72%);
-  --chart-2: hsl(210 90% 62%);
-  --chart-3: hsl(152 55% 52%);
-  --chart-4: hsl(38 90% 58%);
-  --chart-5: hsl(355 75% 65%);
-  --chart-6: hsl(280 65% 70%);
-  --chart-7: hsl(180 55% 52%);
-  --chart-8: hsl(220 15% 65%);
+  --success: hsl(152 42% 52%);
+  --success-foreground: hsl(150 45% 9%);
+  --success-muted: hsl(152 28% 17%);
+  --warning: hsl(34 78% 58%);
+  --warning-foreground: hsl(34 50% 10%);
+  --warning-muted: hsl(34 40% 18%);
+  --info: hsl(200 60% 62%);
+  --info-foreground: hsl(200 50% 10%);
+  --info-muted: hsl(200 35% 18%);
 
-  --sidebar-background: hsl(231 28% 9%);
-  --sidebar-foreground: hsl(235 16% 75%);
-  --sidebar-primary: hsl(237 85% 72%);
-  --sidebar-primary-foreground: hsl(240 40% 10%);
-  --sidebar-accent: hsl(231 18% 15%);
-  --sidebar-accent-foreground: hsl(237 85% 78%);
-  --sidebar-border: hsl(232 16% 16%);
-  --sidebar-ring: hsl(237 85% 72%);
+  --chart-1: hsl(10 72% 58%);
+  --chart-2: hsl(200 60% 60%);
+  --chart-3: hsl(152 42% 54%);
+  --chart-4: hsl(34 78% 60%);
+  --chart-5: hsl(74 72% 58%);
+  --chart-6: hsl(280 40% 66%);
+  --chart-7: hsl(180 38% 52%);
+  --chart-8: hsl(38 14% 60%);
+
+  --sidebar-background: hsl(38 14% 11%);
+  --sidebar-foreground: hsl(40 18% 74%);
+  --sidebar-primary: hsl(74 82% 62%);
+  --sidebar-primary-foreground: hsl(38 30% 10%);
+  --sidebar-accent: hsl(38 10% 17%);
+  --sidebar-accent-foreground: hsl(74 80% 74%);
+  --sidebar-border: hsl(38 10% 19%);
+  --sidebar-ring: hsl(74 82% 62%);
 }
 
 @layer base {
@@ -210,13 +248,18 @@
   body {
     background: var(--color-background);
     color: var(--color-foreground);
-    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-archivo), ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
+  /* Money and tabular data are set in the ledger mono — the figures are the
+     point of this product, so they get the typeface built for columns. */
   .tnum,
   table,
   [data-fin] {
+    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
+    letter-spacing: -0.02em;
   }
   ::selection {
     background: color-mix(in srgb, var(--color-primary) 18%, transparent);
@@ -235,6 +278,74 @@
 
   .page-enter {
     animation: page-enter 0.22s ease-out both;
+  }
+
+  /* ─── Ledger type primitives — shared by marketing and app ─────────────── */
+  .display {
+    font-family: var(--font-instrument-serif), Georgia, serif;
+    font-weight: 400;
+    line-height: 0.94;
+    letter-spacing: -0.022em;
+  }
+  .display-i {
+    font-family: var(--font-instrument-serif), Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+  }
+  .kicker {
+    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .fig {
+    font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    letter-spacing: -0.02em;
+  }
+
+  /* Horizontal ruling of an accounting book */
+  .ledger-rules {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0 43px,
+      var(--rule) 43px 44px
+    );
+  }
+
+  /* Dotted leader row: label ......... figure */
+  .leader {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+  .leader > :first-child {
+    flex: none;
+  }
+  .leader::before {
+    content: "";
+    order: 1;
+    flex: 1 1 auto;
+    translate: 0 -0.28em;
+    border-bottom: 1px dotted var(--rule-strong);
+  }
+  .leader > :last-child {
+    order: 2;
+    flex: none;
+  }
+
+  /* feTurbulence wash so flat fills don't read as CSS */
+  .ledger-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.4;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
   }
 }
 
