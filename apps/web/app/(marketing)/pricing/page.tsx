@@ -186,8 +186,38 @@ export default function Pricing() {
             </h2>
           </motion.div>
 
-          <motion.div {...reveal(1)} className="overflow-x-auto border border-[var(--ink)] bg-[var(--paper)]">
-            <table className="w-full min-w-[640px] border-collapse text-sm">
+          {/* Below sm the four-column grid can't hold its shape, so the same
+              data restacks into one ruled block per plan rather than forcing a
+              sideways scroll to compare anything. */}
+          <motion.div {...reveal(1)} className="space-y-8 sm:hidden">
+            {plans.map((plan, planIdx) => (
+              <div key={plan.id} className="border border-[var(--ink)] bg-[var(--paper)]">
+                <div className="flex items-baseline justify-between border-b border-[var(--ink)] px-4 py-3">
+                  <span className="kicker">{plan.name}</span>
+                  <span className="kicker text-[var(--ink-3)]">
+                    {String(planIdx + 1).padStart(2, '0')}
+                  </span>
+                </div>
+                <dl>
+                  {comparison.map((row) => (
+                    <div
+                      key={row[0] as string}
+                      className="leader border-b border-[var(--rule)] px-4 py-3 last:border-b-0"
+                    >
+                      <dt className="text-[var(--ink-2)]">{row[0]}</dt>
+                      <dd><Cell v={row[planIdx + 1]} /></dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
+          </motion.div>
+
+          <motion.div
+            {...reveal(1)}
+            className="hidden border border-[var(--ink)] bg-[var(--paper)] sm:block"
+          >
+            <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-[var(--ink)]">
                   <th className="p-4 text-left font-normal">
