@@ -7,13 +7,15 @@ import { Redis } from '@upstash/redis'
 // catch below kicks in fast rather than stalling requests/tests.
 const redis = Redis.fromEnv({ retry: false })
 
-export const authRateLimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '1 m') })
 export const importRateLimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, '1 h') })
-// Credentials sign-in has a different abuse profile than registration (much higher
-// legitimate volume from the same user re-typing a forgotten password, but also the
-// actual brute-force/credential-stuffing target) — keyed by the submitted email rather
-// than IP, since next-auth v5's `authorize` callback doesn't cleanly expose request IP.
-export const loginRateLimit = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(10, '5 m') })
+
+// NOTE: the sign-up and sign-in limiters that used to live here were applied
+// inside Auth.js's `authorize` callback and the local /api/auth/register route.
+// Both are gone now that Supabase Auth owns the credential flow — sign-up and
+// sign-in never touch this application's routes, so we cannot throttle them
+// here. Supabase enforces its own rate limits on its auth endpoints; if tighter
+// limits are wanted they have to be configured in the Supabase dashboard
+// (Authentication → Rate Limits) rather than in this file.
 
 /**
  * Checks a rate limit and fails OPEN (allows the request) if Redis is unreachable

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { signOut } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import {
   Bell, Calculator, Car, ChevronRight, CreditCard, FileBarChart, Goal,
   Home, Landmark, LineChart, ListOrdered, LogOut, Menu, Moon, Plus,
@@ -385,7 +385,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <Badge variant="secondary" className="mr-2 font-mono text-[10px] uppercase tracking-wide">Pro</Badge>Subscription
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
+                <DropdownMenuItem onClick={async () => { await createClient().auth.signOut(); router.push('/'); router.refresh() }}>
                   <LogOut className="mr-2 h-4 w-4" />Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>

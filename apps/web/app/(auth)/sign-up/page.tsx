@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -53,24 +53,27 @@ export default function SignUp() {
   const s = useMemo(() => strength(pw), [pw])
 
   const onSubmit = async (v: Values) => {
-    const res = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: v.email, password: v.password, name: v.fullName }),
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.signUp({
+      email: v.email,
+      password: v.password,
+      options: { data: { name: v.fullName } },
     })
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      toast.error(typeof body.error === 'string' ? body.error : 'Could not create account.')
+    if (error) {
+      toast.error(error.message || 'Could not create account.')
       return
     }
-    const result = await signIn('credentials', { email: v.email, password: v.password, redirect: false })
-    if (result?.error) {
-      toast.error('Account created, but sign-in failed. Try signing in manually.')
+    // With email confirmation enabled Supabase returns a user but no session;
+    // the account exists but cannot be used until the link is clicked, so send
+    // them to sign-in with an explanation rather than a dead-end onboarding.
+    if (!data.session) {
+      toast.success('Account created. Check your email to confirm, then sign in.')
       router.push('/sign-in')
       return
     }
     toast.success('Account created. Let’s set up your finances.')
     router.push('/onboarding')
+    router.refresh()
   }
 
   return (

@@ -2,7 +2,7 @@
 import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -41,8 +41,9 @@ function SignIn() {
 
   const onSubmit = async (v: Values) => {
     setServerError('')
-    const result = await signIn('credentials', { email: v.email, password: v.password, redirect: false })
-    if (result?.error) {
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithPassword({ email: v.email, password: v.password })
+    if (error) {
       setServerError('Invalid email or password.')
       toast.error('Invalid email or password.')
       return
@@ -50,6 +51,9 @@ function SignIn() {
     toast.success('Welcome back to Pennyward.')
     const callbackUrl = searchParams.get('callbackUrl')
     router.push(callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : '/app/dashboard')
+    // The session cookie was just set client-side; refresh so server components
+    // and the proxy re-evaluate with it rather than serving a signed-out render.
+    router.refresh()
   }
 
   return (

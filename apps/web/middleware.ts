@@ -1,18 +1,15 @@
-import NextAuth from 'next-auth'
-import { NextResponse } from 'next/server'
-import { authConfig } from '@/auth.config'
+import type { NextRequest } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
 
-const { auth } = NextAuth(authConfig)
-
-export default auth((req) => {
-  const isProtected = req.nextUrl.pathname.startsWith('/app')
-  if (isProtected && !req.auth) {
-    const signInUrl = new URL('/sign-in', req.nextUrl.origin)
-    signInUrl.searchParams.set('callbackUrl', req.nextUrl.pathname)
-    return NextResponse.redirect(signInUrl)
-  }
-})
+export async function middleware(request: NextRequest) {
+  return updateSession(request)
+}
 
 export const config = {
-  matcher: ['/app/:path*'],
+  /**
+   * /app/* is gated here. The auth and onboarding routes are matched too so a
+   * signed-in user's tokens keep getting refreshed while they sit on them —
+   * Supabase's refresh only happens on requests this proxy actually sees.
+   */
+  matcher: ['/app/:path*', '/sign-in', '/sign-up', '/onboarding'],
 }

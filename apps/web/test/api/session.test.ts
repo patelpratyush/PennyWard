@@ -1,7 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
 import { getRequiredSession, UnauthorizedError } from '@/lib/session'
 
-vi.mock('@/auth', () => ({ auth: vi.fn(async () => null) }))
+// Stand in for an unauthenticated Supabase session.
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(async () => ({
+    auth: { getUser: vi.fn(async () => ({ data: { user: null }, error: null })) },
+  })),
+}))
 
 describe('getRequiredSession', () => {
   it('throws UnauthorizedError (not a Response) when no session', async () => {
