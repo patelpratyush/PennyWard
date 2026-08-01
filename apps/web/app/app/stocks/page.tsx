@@ -1,10 +1,12 @@
 'use client'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Info, Plus, Search, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useMe } from '@/hooks/queries/useMe'
 import { PageHeader } from '@/components/shared/Misc'
 import { EmptyState } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
@@ -17,11 +19,23 @@ import { getQuote, searchStocks } from '@/services/stocks'
 import { cn } from '@/lib/utils'
 
 export default function Stocks() {
+  const router = useRouter()
   const { watchlists, addWatchlist, deleteWatchlist, addToWatchlist, removeFromWatchlist } = useStore()
   const [activeId, setActiveId] = useState(watchlists[0]?.id ?? '')
   const [addOpen, setAddOpen] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [search, setSearch] = useState('')
+
+  // Watchlists have no backend (still local to this browser via useStore) —
+  // this caps the count client-side, matching the pricing page. Not a
+  // security boundary, since there's no server resource to guard.
+  const { data: me } = useMe()
+  const watchlistLimit = me?.limits.maxWatchlists ?? Infinity
+  const atWatchlistLimit = watchlists.length >= watchlistLimit
+  const openNewWatchlist = () => {
+    if (atWatchlistLimit) { router.push('/pricing'); return }
+    setAddOpen(true)
+  }
 
   const active = watchlists.find((w) => w.id === activeId) ?? watchlists[0]
   const quotes = useMemo(
@@ -36,7 +50,9 @@ export default function Stocks() {
         description="Informational watchlists — follow companies you care about, without the noise."
         actions={
           <>
-            <Button variant="outline" onClick={() => setAddOpen(true)}><Plus className="mr-1.5 h-4 w-4" />New watchlist</Button>
+            <Button variant="outline" onClick={openNewWatchlist}>
+              <Plus className="mr-1.5 h-4 w-4" />{atWatchlistLimit ? 'Upgrade for more lists' : 'New watchlist'}
+            </Button>
           </>
         }
       />

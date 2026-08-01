@@ -5,6 +5,7 @@ import { withAuthErrorHandling } from '@/lib/withAuth'
 import { assertCategoryOwned } from '@/lib/assertOwned'
 import { upsertBudgetSchema } from '@/lib/validation/budgets'
 import { round2 } from '@/lib/format'
+import { PLAN_LIMITS, upgradeRequired } from '@/lib/plan'
 
 export const GET = withAuthErrorHandling(async (req: Request) => {
   const { userId } = await getRequiredSession()
@@ -22,7 +23,7 @@ export const GET = withAuthErrorHandling(async (req: Request) => {
 })
 
 export const PUT = withAuthErrorHandling(async (req: Request) => {
-  const { userId } = await getRequiredSession()
+  const { userId, plan } = await getRequiredSession()
   const parsed = upsertBudgetSchema.safeParse(await req.json())
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   const { month, entries, expectedIncome, savingsTarget } = parsed.data
@@ -30,6 +31,23 @@ export const PUT = withAuthErrorHandling(async (req: Request) => {
   for (const entry of entries) {
     if (!(await assertCategoryOwned(entry.categoryId, userId))) {
       return NextResponse.json({ error: `Category not found: ${entry.categoryId}` }, { status: 404 })
+    }
+  }
+
+  // Only a genuinely new month counts against the cap — editing a month the
+  // user already has (the far more common request, via this same upsert)
+  // must never be blocked by a limit meant to cap how many months they hold.
+  const limit = PLAN_LIMITS[plan].maxBudgetMonths
+  if (Number.isFinite(limit)) {
+    const existingForMonth = await db.budget.findUnique({ where: { userId_month: { userId, month } } })
+    if (!existingForMonth) {
+      const monthCount = await db.budget.count({ where: { userId } })
+      if (monthCount >= limit) {
+        return NextResponse.json(
+          upgradeRequired(`The Free plan keeps ${limit} budget month. Upgrade to Pro for unlimited months.`),
+          { status: 403 },
+        )
+      }
     }
   }
 

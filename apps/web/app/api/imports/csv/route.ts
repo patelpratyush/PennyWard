@@ -8,6 +8,7 @@ import { normalizePayee } from '@/lib/payeeNormalize'
 import { importHash } from '@/lib/importHash'
 import { round2 } from '@/lib/format'
 import { importRateLimit, checkRateLimit } from '@/lib/rateLimit'
+import { PLAN_LIMITS, upgradeRequired } from '@/lib/plan'
 
 const schema = z.object({
   accountId: z.string(),
@@ -17,7 +18,14 @@ const schema = z.object({
 })
 
 export const POST = withAuthErrorHandling(async (req: Request) => {
-  const { userId } = await getRequiredSession()
+  const { userId, plan } = await getRequiredSession()
+  if (!PLAN_LIMITS[plan].csvImport) {
+    return NextResponse.json(
+      upgradeRequired('CSV import is a Pro feature. Upgrade to import transactions in bulk.'),
+      { status: 403 },
+    )
+  }
+
   const success = await checkRateLimit(importRateLimit, userId)
   if (!success) return NextResponse.json({ error: 'Too many attempts, try again later' }, { status: 429 })
 

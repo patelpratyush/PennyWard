@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useParams } from 'next/navigation'
+import { usePathname, useParams, useRouter } from 'next/navigation'
 import {
   Bell, Check, Database, Download, Gem, Keyboard, Laptop, Moon, Palette,
   RotateCcw, Shield, Sun, Trash2, Upload, User,
@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { exportState, useStore } from '@/stores/useStore'
 import { useCategories, useCreateCategory, useUpdateCategory } from '@/hooks/queries/useCategories'
 import { useCategorizationRules, useCreateCategorizationRule, useDeleteCategorizationRule } from '@/hooks/queries/useCategorizationRules'
+import { useMe } from '@/hooks/queries/useMe'
 import { PageHeader } from '@/components/shared/Misc'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -422,15 +423,28 @@ function SecuritySection() {
 }
 
 function DataSection() {
+  const router = useRouter()
+  const { data: me } = useMe()
+  const exportAllowed = me?.limits.dataExport ?? true
   const { resetToSampleData, clearAllData, importData } = useStore()
   const [confirm, setConfirm] = useState<'reset' | 'clear' | 'delete' | null>(null)
+
+  const exportBackup = () => {
+    if (!exportAllowed) {
+      toast.error('Data export is a Pro feature.', { action: { label: 'See plans', onClick: () => router.push('/pricing') } })
+      return
+    }
+    downloadJSON(`pennyward-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.parse(exportState()))
+    toast.success('Full backup exported as JSON.')
+  }
+
   return (
     <div className="space-y-4">
       <Card className="shadow-card">
         <CardHeader><CardTitle className="text-base">Export & backup</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => { downloadJSON(`pennyward-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.parse(exportState())); toast.success('Full backup exported as JSON.') }}>
-            <Download className="mr-1.5 h-4 w-4" />Export all data (JSON)
+          <Button variant="outline" onClick={exportBackup}>
+            <Download className="mr-1.5 h-4 w-4" />{exportAllowed ? 'Export all data (JSON)' : 'Export all data (Pro)'}
           </Button>
           <Button variant="outline" onClick={() => {
             const input = document.createElement('input')
@@ -490,31 +504,40 @@ function DataSection() {
 }
 
 function SubscriptionSection() {
-  const { profile, updateProfile } = useStore()
+  // Real DB plan, not the old localStorage profile.plan — that field could be
+  // edited directly in devtools to grant any tier, since nothing checked it
+  // server-side. There is no self-serve upgrade flow (no billing integration
+  // yet), so this section is read-only: it shows what plan you actually have
+  // and points at Pricing rather than offering a button that fakes a switch.
+  const { data: me, isLoading } = useMe()
   const plans = [
-    { id: 'free', name: 'Free', price: '$0', features: ['Manual tracking', 'Basic budgeting', '1 payoff plan'] },
-    { id: 'pro', name: 'Pro', price: '$8/mo', features: ['CSV imports', 'Unlimited budgets & plans', 'Insights & exports'] },
-    { id: 'household', name: 'Household', price: '$14/mo', features: ['Shared dashboard', 'Shared budgets & goals', 'Permissions'] },
+    { id: 'free', name: 'Free', price: '$0', features: ['Manual tracking', 'Basic budgeting', '1 saved payoff plan', '1 budget month'] },
+    { id: 'pro', name: 'Pro', price: '$8/mo', features: ['CSV imports', 'Unlimited budgets & payoff plans', 'Goals, watchlists & data export'] },
+    { id: 'household', name: 'Household', price: '$14/mo', features: ['Everything in Pro', 'Shared dashboard (coming soon)', 'Multiple members (coming soon)'] },
   ] as const
+
+  if (isLoading || !me) return <div className="h-40 animate-pulse rounded-lg bg-muted" />
+
   return (
     <div className="space-y-4">
       <Card className="shadow-card">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
           <div>
             <p className="text-sm text-muted-foreground">Current plan</p>
-            <p className="text-xl font-bold capitalize">{profile.plan} <Badge className="ml-1 align-middle">{profile.plan === 'free' ? 'Free' : 'Active'}</Badge></p>
-            <p className="mt-1 text-xs text-muted-foreground">Renews August 1, 2026 · Visa ending in 4242 (demo)</p>
+            <p className="text-xl font-bold capitalize">{me.plan} <Badge className="ml-1 align-middle">{me.plan === 'free' ? 'Free' : 'Active'}</Badge></p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              No billing is set up yet — plan changes are handled manually. <Link href="/pricing" className="underline">See plan details</Link>.
+            </p>
           </div>
-          <Button variant="outline" onClick={() => toast.success('Billing portal would open here in production.')}>Manage billing</Button>
         </CardContent>
       </Card>
       <div className="grid gap-3 md:grid-cols-3">
         {plans.map((p) => (
-          <Card key={p.id} className={cn('shadow-card', profile.plan === p.id && 'border-primary')}>
+          <Card key={p.id} className={cn('shadow-card', me.plan === p.id && 'border-primary')}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">{p.name}</h3>
-                {profile.plan === p.id && <Badge>Current</Badge>}
+                {me.plan === p.id && <Badge>Current</Badge>}
               </div>
               <p className="mt-1 text-2xl font-bold tnum">{p.price}</p>
               <ul className="mt-3 space-y-1.5">
@@ -522,12 +545,11 @@ function SubscriptionSection() {
                   <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground"><Check className="h-3.5 w-3.5 text-success" />{f}</li>
                 ))}
               </ul>
-              <Button
-                className="mt-4 w-full" variant={profile.plan === p.id ? 'outline' : 'default'} disabled={profile.plan === p.id}
-                onClick={() => { updateProfile({ plan: p.id }); toast.success(`Switched to the ${p.name} plan (demo).`) }}
-              >
-                {profile.plan === p.id ? 'Your plan' : `Switch to ${p.name}`}
-              </Button>
+              {me.plan !== p.id && (
+                <Button asChild className="mt-4 w-full" variant="outline">
+                  <Link href="/pricing">Learn more</Link>
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}

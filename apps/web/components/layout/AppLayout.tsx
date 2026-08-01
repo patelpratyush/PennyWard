@@ -13,6 +13,7 @@ import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useTransactions } from '@/hooks/queries/useTransactions'
 import { useDebts } from '@/hooks/queries/useDebts'
 import { useCategories } from '@/hooks/queries/useCategories'
+import { useMe } from '@/hooks/queries/useMe'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/shared/Logo'
 import { Button } from '@/components/ui/button'
@@ -228,7 +229,7 @@ function GlobalSearch({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
   )
 }
 
-function SidebarContent({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
+function SidebarContent({ collapsed, onNavigate, plan }: { collapsed?: boolean; onNavigate?: () => void; plan?: string }) {
   const pathname = usePathname()
   return (
     <div className="flex h-full flex-col">
@@ -262,10 +263,14 @@ function SidebarContent({ collapsed, onNavigate }: { collapsed?: boolean; onNavi
       {!collapsed && (
         <div className="border-t border-border p-4">
           <div className="border border-border bg-card p-3">
-            <p className="kicker text-[var(--rust)]">Pro plan</p>
-            <p className="mt-1.5 text-xs text-muted-foreground">CSV imports, unlimited budgets &amp; scenarios.</p>
+            <p className="kicker text-[var(--rust)] capitalize">{plan ?? '···'} plan</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {plan === 'free'
+                ? 'Upgrade for CSV imports, unlimited budgets & scenarios.'
+                : 'CSV imports, unlimited budgets & scenarios.'}
+            </p>
             <Button asChild size="sm" variant="outline" className="mt-2.5 h-8 w-full font-mono text-[11px] uppercase tracking-wide">
-              <Link href="/app/settings/subscription">Manage plan</Link>
+              <Link href="/app/settings/subscription">{plan === 'free' ? 'See plans' : 'Manage plan'}</Link>
             </Button>
           </div>
         </div>
@@ -282,6 +287,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const profile = useStore((s) => s.profile)
   const density = useStore((s) => s.settings.density)
+  const { data: me } = useMe()
 
   const crumbs = useMemo(() => {
     const parts = pathname.split('/').filter(Boolean).slice(1)
@@ -295,14 +301,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         'fixed inset-y-0 left-0 z-30 hidden border-r bg-sidebar transition-[width] duration-200 lg:block',
         collapsed ? 'w-[68px]' : 'w-64',
       )}>
-        <SidebarContent collapsed={collapsed} />
+        <SidebarContent collapsed={collapsed} plan={me?.plan} />
       </aside>
 
       {/* Mobile drawer */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-72 p-0">
           <SheetHeader className="sr-only"><SheetTitle>Navigation</SheetTitle></SheetHeader>
-          <SidebarContent onNavigate={() => setMobileOpen(false)} />
+          <SidebarContent onNavigate={() => setMobileOpen(false)} plan={me?.plan} />
         </SheetContent>
       </Sheet>
 

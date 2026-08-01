@@ -2,11 +2,17 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { POST } from '@/app/api/imports/csv/route'
 import { db } from '@/lib/db'
 
-vi.mock('@/lib/session', () => ({ getRequiredSession: vi.fn(async () => ({ userId: 'user_test' })) }))
+// Defaults to 'pro' so the existing import tests below (which predate plan
+// gating) aren't incidentally blocked by CSV import being a Free-tier-only
+// feature. The block itself is exercised explicitly further down.
+let currentPlan: 'free' | 'pro' | 'household' = 'pro'
+
+vi.mock('@/lib/session', () => ({ getRequiredSession: vi.fn(async () => ({ userId: 'user_test', plan: currentPlan })) }))
 
 let accountId: string
 
 beforeEach(async () => {
+  currentPlan = 'pro'
   await db.user.upsert({ where: { id: 'user_test' }, update: {}, create: { id: 'user_test', email: 'imp@example.com' } })
   await db.transaction.deleteMany({ where: { userId: 'user_test' } })
   await db.financialAccount.deleteMany({ where: { userId: 'user_test' } })
@@ -37,5 +43,26 @@ describe('POST /api/imports/csv', () => {
     const body2 = await res2.json()
     expect(body2.imported).toBe(0)
     expect(body2.duplicates).toBe(2)
+  })
+})
+
+describe('POST /api/imports/csv — Free plan block', () => {
+  it('rejects the import entirely on Free with 403 upgrade_required', async () => {
+    currentPlan = 'free'
+    const req = new Request('http://x', { method: 'POST', body: JSON.stringify({ accountId, rows, mapping, dateFormat: 'MM/dd/yyyy' }) })
+    const res = await POST(req)
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error).toBe('upgrade_required')
+
+    const count = await db.transaction.count({ where: { userId: 'user_test' } })
+    expect(count).toBe(0)
+  })
+
+  it('allows the import on Pro', async () => {
+    currentPlan = 'pro'
+    const req = new Request('http://x', { method: 'POST', body: JSON.stringify({ accountId, rows, mapping, dateFormat: 'MM/dd/yyyy' }) })
+    const res = await POST(req)
+    expect(res.status).toBe(200)
   })
 })

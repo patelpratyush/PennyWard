@@ -1,5 +1,6 @@
 'use client'
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { addMonths, endOfMonth, format, parseISO, subMonths } from 'date-fns'
 import { Area, AreaChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from 'recharts'
 import {
@@ -7,6 +8,7 @@ import {
   RotateCcw, Settings2, Wallet,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { UpgradeRequiredError } from '@/lib/fetchJSON'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { useBudget, useUpsertBudget } from '@/hooks/queries/useBudgets'
 import { useAllTransactions } from '@/hooks/queries/useAllTransactions'
@@ -32,6 +34,7 @@ import type { BudgetEntry, Category } from '@/types'
 const EMPTY_CATEGORIES: Category[] = []
 
 export default function Budgets() {
+  const router = useRouter()
   const categoriesQ = useCategories()
   const categories = categoriesQ.data ?? EMPTY_CATEGORIES
   const [monthOffset, setMonthOffset] = useState(0)
@@ -85,7 +88,13 @@ export default function Budgets() {
     }
     upsertMutation.mutate(payload, {
       onSuccess: () => { if (successMessage) toast.success(successMessage) },
-      onError: () => toast.error('Failed to update budget. Please try again.'),
+      onError: (err) => {
+        if (err instanceof UpgradeRequiredError) {
+          toast.error(err.message, { action: { label: 'See plans', onClick: () => router.push('/pricing') } })
+          return
+        }
+        toast.error('Failed to update budget. Please try again.')
+      },
     })
   }
 

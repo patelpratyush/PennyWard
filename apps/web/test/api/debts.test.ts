@@ -6,11 +6,16 @@ import { PATCH as scenarioPATCH, DELETE as scenarioDELETE } from '@/app/api/scen
 import { db } from '@/lib/db'
 
 let currentUserId = 'user_test'
+// Defaults to 'pro' so the existing round-trip/ownership tests below (which
+// predate plan gating) aren't incidentally constrained by the Free tier's
+// 1-scenario cap. The cap itself is exercised explicitly further down.
+let currentPlan: 'free' | 'pro' | 'household' = 'pro'
 
-vi.mock('@/lib/session', () => ({ getRequiredSession: vi.fn(async () => ({ userId: currentUserId })) }))
+vi.mock('@/lib/session', () => ({ getRequiredSession: vi.fn(async () => ({ userId: currentUserId, plan: currentPlan })) }))
 
 beforeEach(async () => {
   currentUserId = 'user_test'
+  currentPlan = 'pro'
   await db.user.upsert({ where: { id: 'user_test' }, update: {}, create: { id: 'user_test', email: 'debt@example.com' } })
   await db.user.upsert({ where: { id: 'user_other' }, update: {}, create: { id: 'user_other', email: 'debt-other@example.com' } })
   await db.payoffScenario.deleteMany({ where: { userId: { in: ['user_test', 'user_other'] } } })
@@ -118,6 +123,41 @@ describe('POST /api/scenarios/payoff then GET', () => {
     })
     const res = await scenariosPOST(req)
     expect(res.status).toBe(400)
+  })
+})
+
+describe('POST /api/scenarios/payoff — Free plan cap', () => {
+  const scenario = (name: string) => new Request('http://x', {
+    method: 'POST',
+    body: JSON.stringify({ name, strategy: 'avalanche', extraMonthly: 0, oneTimePayment: 0, startMonth: '2026-08' }),
+  })
+
+  it('allows the first saved scenario on Free', async () => {
+    currentPlan = 'free'
+    const res = await scenariosPOST(scenario('First plan'))
+    expect(res.status).toBe(201)
+  })
+
+  it('rejects a second saved scenario on Free with 403 upgrade_required', async () => {
+    currentPlan = 'free'
+    const first = await scenariosPOST(scenario('First plan'))
+    expect(first.status).toBe(201)
+
+    const second = await scenariosPOST(scenario('Second plan'))
+    expect(second.status).toBe(403)
+    const body = await second.json()
+    expect(body.error).toBe('upgrade_required')
+
+    const count = await db.payoffScenario.count({ where: { userId: 'user_test' } })
+    expect(count).toBe(1)
+  })
+
+  it('allows a second saved scenario on Pro', async () => {
+    currentPlan = 'pro'
+    const first = await scenariosPOST(scenario('First plan'))
+    expect(first.status).toBe(201)
+    const second = await scenariosPOST(scenario('Second plan'))
+    expect(second.status).toBe(201)
   })
 })
 

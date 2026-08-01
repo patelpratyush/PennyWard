@@ -3,13 +3,18 @@ import { GET, PUT } from '@/app/api/budgets/route'
 import { db } from '@/lib/db'
 
 let currentUserId = 'user_test'
+// Defaults to 'pro' so the existing tests below (which predate plan gating)
+// aren't incidentally constrained by the Free tier's 1-month cap. The cap
+// itself is exercised explicitly further down.
+let currentPlan: 'free' | 'pro' | 'household' = 'pro'
 
-vi.mock('@/lib/session', () => ({ getRequiredSession: vi.fn(async () => ({ userId: currentUserId })) }))
+vi.mock('@/lib/session', () => ({ getRequiredSession: vi.fn(async () => ({ userId: currentUserId, plan: currentPlan })) }))
 
 let categoryId: string
 
 beforeEach(async () => {
   currentUserId = 'user_test'
+  currentPlan = 'pro'
   await db.user.upsert({ where: { id: 'user_test' }, update: {}, create: { id: 'user_test', email: 'bud@example.com' } })
   await db.user.upsert({ where: { id: 'user_other' }, update: {}, create: { id: 'user_other', email: 'bud-other@example.com' } })
   await db.budget.deleteMany({ where: { userId: { in: ['user_test', 'user_other'] } } })
@@ -75,5 +80,47 @@ describe('cross-user ownership boundary', () => {
 
     const mine = await db.budget.findUniqueOrThrow({ where: { userId_month: { userId: 'user_test', month: '2026-09' } } })
     expect(Number(mine.expectedIncome)).toBe(9999)
+  })
+})
+
+describe('PUT /api/budgets — Free plan cap', () => {
+  const body = (month: string) => JSON.stringify({ month, entries: [], expectedIncome: 0, savingsTarget: 0 })
+
+  it('allows the first budget month on Free', async () => {
+    currentPlan = 'free'
+    const res = await PUT(new Request('http://x', { method: 'PUT', body: body('2026-07') }))
+    expect(res.status).toBe(200)
+  })
+
+  it('allows editing that same month again on Free (not a new month)', async () => {
+    currentPlan = 'free'
+    await PUT(new Request('http://x', { method: 'PUT', body: body('2026-07') }))
+    const res = await PUT(new Request('http://x', {
+      method: 'PUT',
+      body: JSON.stringify({ month: '2026-07', entries: [], expectedIncome: 500, savingsTarget: 0 }),
+    }))
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects a second distinct month on Free with 403 upgrade_required', async () => {
+    currentPlan = 'free'
+    const first = await PUT(new Request('http://x', { method: 'PUT', body: body('2026-07') }))
+    expect(first.status).toBe(200)
+
+    const second = await PUT(new Request('http://x', { method: 'PUT', body: body('2026-08') }))
+    expect(second.status).toBe(403)
+    const responseBody = await second.json()
+    expect(responseBody.error).toBe('upgrade_required')
+
+    const count = await db.budget.count({ where: { userId: 'user_test' } })
+    expect(count).toBe(1)
+  })
+
+  it('allows a second distinct month on Pro', async () => {
+    currentPlan = 'pro'
+    const first = await PUT(new Request('http://x', { method: 'PUT', body: body('2026-07') }))
+    expect(first.status).toBe(200)
+    const second = await PUT(new Request('http://x', { method: 'PUT', body: body('2026-08') }))
+    expect(second.status).toBe(200)
   })
 })

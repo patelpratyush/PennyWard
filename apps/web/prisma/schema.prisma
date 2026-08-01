@@ -19,11 +19,20 @@ datasource db {
 /// schema which Prisma does not manage, and a cross-schema FK would make every
 /// migration fight the Supabase-managed schema. Rows are created lazily by
 /// `getRequiredSession()` on a user's first authenticated request.
+enum Plan {
+  free
+  pro
+  household
+}
+
 model User {
   id    String  @id
   name  String?
   email String? @unique
   image String?
+  /// No billing integration exists yet — this is set manually (DB/admin),
+  /// never by the user themselves. See lib/plan.ts for what each tier gates.
+  plan  Plan    @default(free)
 
   financialAccounts   FinancialAccount[]
   categories          Category[]

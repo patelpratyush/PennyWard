@@ -9,6 +9,7 @@ import {
 import { format, parseISO } from 'date-fns'
 import { ArrowLeft, ArrowRight, Check, PartyPopper, Snowflake, TrendingDown } from 'lucide-react'
 import { toast } from 'sonner'
+import { UpgradeRequiredError } from '@/lib/fetchJSON'
 import { useDebts, useSavePayoffScenario } from '@/hooks/queries/useDebts'
 import { PageHeader } from '@/components/shared/Misc'
 import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
@@ -91,7 +92,13 @@ export default function PayoffPlanner() {
           setSaveDialogOpen(false)
           router.push('/app/debt')
         },
-        onError: () => toast.error('Could not save this payoff plan.'),
+        onError: (err) => {
+          if (err instanceof UpgradeRequiredError) {
+            toast.error(err.message, { action: { label: 'See plans', onClick: () => router.push('/pricing') } })
+            return
+          }
+          toast.error('Could not save this payoff plan.')
+        },
       },
     )
   }

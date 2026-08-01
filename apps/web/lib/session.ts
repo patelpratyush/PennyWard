@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
+import type { Plan } from '@prisma/client'
 
 /**
  * Thrown by `getRequiredSession` when there is no authenticated user.
@@ -20,16 +21,17 @@ export class UnauthorizedError extends Error {
 /**
  * Resolves the current user from the Supabase session.
  *
- * Deliberately keeps the `Promise<{ userId: string }>` shape it had under
- * Auth.js so that all 15 route handlers, `withAuthErrorHandling`, and the
- * existing test suite are unaffected by the auth provider swap. The returned
- * `userId` is now the Supabase `auth.users.id` (a uuid) rather than a cuid.
+ * Originally returned only `{ userId }` (that was the whole Auth.js-era
+ * shape); `plan` was added later as a plain extra field. Every existing call
+ * site destructures `{ userId }` and JS ignores the rest, so this stayed
+ * non-breaking for all 15 pre-existing route handlers — only the handlers
+ * that actually need to gate on plan destructure `{ userId, plan }`.
  *
  * `getUser()` is used rather than `getSession()` because it revalidates the JWT
  * against the auth server; `getSession()` trusts the cookie contents and must
  * never back an authorization decision.
  */
-export async function getRequiredSession(): Promise<{ userId: string }> {
+export async function getRequiredSession(): Promise<{ userId: string; plan: Plan }> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -42,7 +44,9 @@ export async function getRequiredSession(): Promise<{ userId: string }> {
   // first authenticated request means no database trigger or webhook is needed
   // to keep the two in sync, and a user created by any means (email, OAuth,
   // dashboard) gets a profile row the first time they actually use the app.
-  await db.user.upsert({
+  // `upsert` returns the full row, so an existing user's `plan` (set manually
+  // in the DB, never by the app) round-trips here without a second query.
+  const row = await db.user.upsert({
     where: { id: user.id },
     update: {},
     create: {
@@ -52,5 +56,5 @@ export async function getRequiredSession(): Promise<{ userId: string }> {
     },
   })
 
-  return { userId: user.id }
+  return { userId: user.id, plan: row.plan }
 }

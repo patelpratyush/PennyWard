@@ -10,6 +10,7 @@ import {
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
 import { useAccounts } from '@/hooks/queries/useAccounts'
+import { useMe } from '@/hooks/queries/useMe'
 import { PageHeader, StatusBadge } from '@/components/shared/Misc'
 import { EmptyState } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
@@ -30,9 +31,13 @@ function GoalsInner() {
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Goal | null>(null)
+  // Goals have no backend (still local to this browser via useStore) — this
+  // is a UI-only gate matching the pricing page, not a security boundary.
+  const { data: me } = useMe()
+  const goalsAllowed = me?.limits.goals ?? true
 
   useEffect(() => {
-    if (searchParams.get('add') === '1') {
+    if (searchParams.get('add') === '1' && goalsAllowed) {
       setEditing(null)
       setDialogOpen(true)
       const next = new URLSearchParams(searchParams.toString())
@@ -46,16 +51,26 @@ function GoalsInner() {
       <PageHeader
         title="Savings goals"
         description="Milestones, monthly contributions, and the finish line."
-        actions={<Button onClick={() => { setEditing(null); setDialogOpen(true) }}><Plus className="mr-1.5 h-4 w-4" />Add goal</Button>}
+        actions={
+          goalsAllowed ? (
+            <Button onClick={() => { setEditing(null); setDialogOpen(true) }}><Plus className="mr-1.5 h-4 w-4" />Add goal</Button>
+          ) : (
+            <Button asChild variant="outline"><Link href="/pricing">Upgrade for goals</Link></Button>
+          )
+        }
       />
 
       {goals.length === 0 ? (
         <EmptyState
           icon={<PiggyBank className="h-6 w-6" />}
           title="No savings goals yet"
-          description="Create an emergency fund, vacation fund, or down-payment goal and track every contribution."
-          actionLabel="Add goal"
-          onAction={() => setDialogOpen(true)}
+          description={
+            goalsAllowed
+              ? 'Create an emergency fund, vacation fund, or down-payment goal and track every contribution.'
+              : 'Savings goals are a Pro feature. Upgrade to start tracking one.'
+          }
+          actionLabel={goalsAllowed ? 'Add goal' : 'See plans'}
+          onAction={() => goalsAllowed ? setDialogOpen(true) : router.push('/pricing')}
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

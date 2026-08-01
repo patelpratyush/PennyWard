@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { useTransactions, useUpdateTransaction, useBulkDeleteTransactions } from '@/hooks/queries/useTransactions'
+import { useMe } from '@/hooks/queries/useMe'
 import { TransactionDialog } from '@/components/financial/TransactionDialog'
 import { PageHeader } from '@/components/shared/Misc'
 import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
@@ -40,6 +41,10 @@ function TransactionsInner() {
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const router = useRouter()
+  // Export has no dedicated backend of its own (it packages already-fetched
+  // API data client-side) — this is a UI-only gate, not a security boundary.
+  const { data: me } = useMe()
+  const exportAllowed = me?.limits.dataExport ?? true
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -141,6 +146,10 @@ function TransactionsInner() {
   }
 
   const exportCSV = () => {
+    if (!exportAllowed) {
+      toast.error('CSV export is a Pro feature.', { action: { label: 'See plans', onClick: () => router.push('/pricing') } })
+      return
+    }
     downloadCSV(
       `pennyward-transactions-${new Date().toISOString().slice(0, 10)}.csv`,
       ['Date', 'Merchant', 'Account', 'Category', 'Type', 'Amount', 'Status', 'Tags'],
@@ -265,7 +274,9 @@ function TransactionsInner() {
         actions={
           <>
             <Button asChild variant="outline"><Link href="/app/transactions/import"><Upload className="mr-1.5 h-4 w-4" />Import CSV</Link></Button>
-            <Button variant="outline" onClick={exportCSV}><Download className="mr-1.5 h-4 w-4" />Export</Button>
+            <Button variant="outline" onClick={exportCSV}>
+              <Download className="mr-1.5 h-4 w-4" />{exportAllowed ? 'Export' : 'Export (Pro)'}
+            </Button>
             <Button onClick={() => { setEditing(null); setDialogOpen(true) }}><Plus className="mr-1.5 h-4 w-4" />Add transaction</Button>
           </>
         }

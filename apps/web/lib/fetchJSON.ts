@@ -18,6 +18,15 @@ function isZodFlattenedError(value: unknown): value is ZodFlattenedError {
   return typeof value === 'object' && value !== null && ('formErrors' in value || 'fieldErrors' in value)
 }
 
+/**
+ * Thrown instead of a plain Error when a route returns `upgradeRequired(...)`
+ * (see lib/plan.ts) — a 403 with `{ error: 'upgrade_required', message }`.
+ * Callers that want to show an upsell rather than a generic error toast
+ * check `instanceof UpgradeRequiredError` and read `.message` directly (it's
+ * already the human-readable copy, not a Zod-flatten object).
+ */
+export class UpgradeRequiredError extends Error {}
+
 function toErrorMessage(error: unknown, fallback: string): string {
   if (typeof error === 'string' && error.length > 0) return error
   if (isZodFlattenedError(error)) {
@@ -34,6 +43,9 @@ export async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> 
   const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...init })
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
+    if (body?.error === 'upgrade_required') {
+      throw new UpgradeRequiredError(typeof body.message === 'string' ? body.message : 'Upgrade required.')
+    }
     throw new Error(toErrorMessage(body?.error, `Request failed: ${res.status}`))
   }
   return res.json()

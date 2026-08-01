@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
 import { useAccounts } from '@/hooks/queries/useAccounts'
+import { useMe } from '@/hooks/queries/useMe'
 import { PageHeader } from '@/components/shared/Misc'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -91,6 +92,8 @@ export default function TransactionsImport() {
   // table, so an id picked from the legacy Zustand sample-data store would
   // never match a real account and the import would always 404.
   const { data: accounts = [] } = useAccounts()
+  const { data: me } = useMe()
+  const csvImportAllowed = me?.limits.csvImport ?? true // default open while /api/me is loading, server still enforces
   const { transactions, pushNotification } = useStore()
   const [step, setStep] = useState(1)
   const [fileName, setFileName] = useState('')
@@ -212,6 +215,13 @@ export default function TransactionsImport() {
         }),
       })
       if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        if (body?.error === 'upgrade_required') {
+          toast.error(typeof body.message === 'string' ? body.message : 'CSV import is a Pro feature.', {
+            action: { label: 'See plans', onClick: () => router.push('/pricing') },
+          })
+          return
+        }
         toast.error('Import failed. Please check your data and try again.')
         return
       }
@@ -272,7 +282,19 @@ export default function TransactionsImport() {
       <AnimatePresence mode="wait">
         <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }}>
           {/* STEP 1 — upload */}
-          {step === 1 && (
+          {step === 1 && !csvImportAllowed && (
+            <Card className="shadow-card">
+              <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
+                <FileUp className="h-10 w-10 text-muted-foreground" />
+                <p className="font-semibold">CSV import is a Pro feature</p>
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  Free accounts can add transactions manually. Upgrade to Pro to import a CSV in bulk.
+                </p>
+                <Button asChild className="mt-2"><Link href="/pricing">See plans</Link></Button>
+              </CardContent>
+            </Card>
+          )}
+          {step === 1 && csvImportAllowed && (
             <Card className="shadow-card">
               <CardContent className="p-6">
                 <div
