@@ -48,10 +48,10 @@ const comparison: [string, boolean | string, boolean | string, boolean | string]
 ]
 
 const faqs: [string, string][] = [
-  ['Can I switch plans later?', 'Yes — upgrade or downgrade at any time from Settings → Subscription. Changes are prorated.'],
-  ['What happens to my data if I downgrade?', 'Nothing is deleted. Features beyond the Free tier become read-only until you upgrade again.'],
-  ['Is there a free trial for Pro?', 'Yes, Pro includes a 14-day free trial. No credit card required to start.'],
-  ['How does annual billing work?', 'Annual plans are billed once per year and save about 20% versus monthly billing.'],
+  ['Can I switch plans later?', 'Plan changes are handled manually for now — email us and we\'ll move your account. Self-serve upgrades are coming soon.'],
+  ['What happens to my data if I downgrade?', 'Nothing is deleted. You just can\'t add new items beyond the Free tier\'s limits until you\'re upgraded again.'],
+  ['Is there a free trial for Pro?', 'Not yet — reach out and we can set one up manually while self-serve billing is in the works.'],
+  ['How does billing work?', 'Card billing isn\'t live yet. Annual pricing above is what it\'ll cost once billing launches; for now, plan upgrades are granted manually at no charge.'],
 ]
 
 function Cell({ v }: { v: boolean | string }) {
