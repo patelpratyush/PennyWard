@@ -10,6 +10,8 @@ import { format, parseISO } from 'date-fns'
 import { Copy, Download, GitCompareArrows, RotateCcw, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useSaveLoanScenario } from '@/hooks/queries/useLoanScenarios'
+import { UpgradeRequiredError } from '@/lib/fetchJSON'
 import { PageHeader } from '@/components/shared/Misc'
 import { AnimatedMoney } from '@/components/shared/Money'
 import { Button } from '@/components/ui/button'
@@ -42,7 +44,8 @@ function MoneyInput({ label, value, onChange, prefix = '$', step = '1' }: {
 
 export default function CarCalculator() {
   const router = useRouter()
-  const { addScenario, addDebt, pushNotification } = useStore()
+  const { addDebt, pushNotification } = useStore()
+  const saveLoanScenario = useSaveLoanScenario()
   const [i, setI] = useState(defaults)
   const [aff, setAff] = useState({ grossIncome: 7200, netIncome: 5400, existingDebtPayments: 952, insurance: 165, fuel: 170, maintenance: 60, parkingTolls: 40 })
 
@@ -87,10 +90,22 @@ export default function CarCalculator() {
     return { term: `${term} mo`, payment: pmt, interest: round2(total - r.amountFinanced) }
   }), [r.amountFinanced, i.apr])
 
-  const saveScenario = (duplicate = false) => {
-    const id = addScenario({ ...i, name: duplicate ? `${i.name || 'Scenario'} (copy)` : i.name || `Vehicle scenario ${format(new Date(), 'MMM d')}`, kind: 'car', preferred: false })
-    toast.success(duplicate ? 'Scenario duplicated.' : 'Scenario saved.')
-    return id
+  const saveScenario = async (duplicate = false): Promise<string | null> => {
+    try {
+      const row = await saveLoanScenario.mutateAsync({
+        ...i, name: duplicate ? `${i.name || 'Scenario'} (copy)` : i.name || `Vehicle scenario ${format(new Date(), 'MMM d')}`,
+        kind: 'car', preferred: false,
+      })
+      toast.success(duplicate ? 'Scenario duplicated.' : 'Scenario saved.')
+      return row.id
+    } catch (err) {
+      if (err instanceof UpgradeRequiredError) {
+        toast.error(err.message, { action: { label: 'See plans', onClick: () => router.push('/pricing') } })
+        return null
+      }
+      toast.error('Could not save this scenario.')
+      return null
+    }
   }
 
   const exportAmortization = () => {
@@ -109,10 +124,10 @@ export default function CarCalculator() {
         description="The true cost of a vehicle — taxes, fees, financing, and the power of extra payments."
         actions={
           <>
-            <Button variant="outline" onClick={() => { saveScenario(); router.push('/app/loans/scenarios') }}><GitCompareArrows className="mr-1.5 h-4 w-4" />Compare scenarios</Button>
+            <Button variant="outline" onClick={async () => { const id = await saveScenario(); if (id) router.push('/app/loans/scenarios') }}><GitCompareArrows className="mr-1.5 h-4 w-4" />Compare scenarios</Button>
             <Button variant="outline" onClick={exportAmortization}><Download className="mr-1.5 h-4 w-4" />Export schedule</Button>
             <Button variant="outline" onClick={() => setI(defaults)}><RotateCcw className="mr-1.5 h-4 w-4" />Reset</Button>
-            <Button onClick={() => saveScenario()}><Save className="mr-1.5 h-4 w-4" />Save scenario</Button>
+            <Button onClick={() => saveScenario()} disabled={saveLoanScenario.isPending}><Save className="mr-1.5 h-4 w-4" />Save scenario</Button>
           </>
         }
       />
@@ -388,9 +403,9 @@ export default function CarCalculator() {
                 toast.success('Active loan created from this scenario.')
                 router.push('/app/debt')
               }}>Create active loan</Button>
-              <Button variant="outline" onClick={() => {
-                const id = saveScenario()
-                router.push(`/app/loans/${id}/amortization`)
+              <Button variant="outline" onClick={async () => {
+                const id = await saveScenario()
+                if (id) router.push(`/app/loans/${id}/amortization`)
               }}>View amortization schedule</Button>
             </CardContent>
           </Card>

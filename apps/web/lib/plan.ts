@@ -4,9 +4,10 @@ import type { Plan } from '@prisma/client'
  * What each tier actually gates, matching the pricing page's comparison
  * table (app/(marketing)/pricing/page.tsx) — with two honest exceptions:
  *
- * - "Basic vs Advanced" for budgets/reports/loan-calculator was never a real
- *   code distinction before this file existed, and inventing one here would
- *   just be making up product behavior. Not represented below.
+ * - "Basic vs Advanced" for budgets/reports was never a real code
+ *   distinction before this file existed, and inventing one here would
+ *   just be making up product behavior. Not represented below. (Loan
+ *   calculator's split IS real now — see `maxLoanScenarios`.)
  * - "Shared household dashboard" / "Multiple members & permissions" need a
  *   membership+invite model that doesn't exist. `household` currently gets
  *   the same limits as `pro`; it is not yet functionally different.
@@ -22,6 +23,8 @@ export const PLAN_LIMITS: Record<Plan, {
   maxBudgetMonths: number
   /** Number of watchlists (containers), not tickers within one. */
   maxWatchlists: number
+  /** Saved loan-calculator scenarios (car + general), server-persisted and capped. */
+  maxLoanScenarios: number
   csvImport: boolean
   dataExport: boolean
   /** The pricing page lists this as an all-or-nothing feature, not a count. */
@@ -31,6 +34,7 @@ export const PLAN_LIMITS: Record<Plan, {
     maxDebtPayoffScenarios: 1,
     maxBudgetMonths: 1,
     maxWatchlists: 1,
+    maxLoanScenarios: 1,
     csvImport: false,
     dataExport: false,
     goals: false,
@@ -39,6 +43,7 @@ export const PLAN_LIMITS: Record<Plan, {
     maxDebtPayoffScenarios: Infinity,
     maxBudgetMonths: Infinity,
     maxWatchlists: Infinity,
+    maxLoanScenarios: Infinity,
     csvImport: true,
     dataExport: true,
     goals: true,
@@ -47,6 +52,7 @@ export const PLAN_LIMITS: Record<Plan, {
     maxDebtPayoffScenarios: Infinity,
     maxBudgetMonths: Infinity,
     maxWatchlists: Infinity,
+    maxLoanScenarios: Infinity,
     csvImport: true,
     dataExport: true,
     goals: true,

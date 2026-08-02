@@ -40,6 +40,7 @@ model User {
   budgets             Budget[]
   debts               Debt[]
   payoffScenarios     PayoffScenario[]
+  loanScenarios       LoanScenario[]
   categorizationRules CategorizationRule[]
 
   createdAt DateTime @default(now())
@@ -221,6 +222,40 @@ model PayoffScenario {
   startMonth    String         // 'YYYY-MM'
   customOrder   String[]       @default([])
   createdAt     DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum LoanScenarioKind {
+  car
+  general
+}
+
+model LoanScenario {
+  id              String           @id @default(cuid())
+  userId          String
+  name            String
+  preferred       Boolean          @default(false)
+  kind            LoanScenarioKind
+  vehiclePrice    Decimal          @db.Decimal(14, 2) @default(0)
+  downPayment     Decimal          @db.Decimal(14, 2) @default(0)
+  tradeInValue    Decimal          @db.Decimal(14, 2) @default(0)
+  tradeInOwed     Decimal          @db.Decimal(14, 2) @default(0)
+  rebate          Decimal          @db.Decimal(14, 2) @default(0)
+  taxRate         Decimal          @db.Decimal(6, 4)  @default(0)
+  docFee          Decimal          @db.Decimal(12, 2) @default(0)
+  registrationFee Decimal          @db.Decimal(12, 2) @default(0)
+  destinationFee  Decimal          @db.Decimal(12, 2) @default(0)
+  dealerFees      Decimal          @db.Decimal(12, 2) @default(0)
+  loanAmount      Decimal          @db.Decimal(14, 2) @default(0)
+  apr             Decimal          @db.Decimal(6, 4)
+  termMonths      Int
+  startDate       DateTime         @db.Date
+  extraMonthly    Decimal          @db.Decimal(12, 2) @default(0)
+  oneTimePayment  Decimal          @db.Decimal(12, 2) @default(0)
+  createdAt       DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

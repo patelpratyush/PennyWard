@@ -6,6 +6,8 @@ import { Copy, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { useStore } from '@/stores/useStore'
+import { useLoanScenarios, useSaveLoanScenario, useUpdateLoanScenario, useDeleteLoanScenario } from '@/hooks/queries/useLoanScenarios'
+import { UpgradeRequiredError } from '@/lib/fetchJSON'
 import { PageHeader } from '@/components/shared/Misc'
 import { EmptyState } from '@/components/shared/States'
 import { Button } from '@/components/ui/button'
@@ -30,7 +32,11 @@ interface Row {
 
 export default function Scenarios() {
   const router = useRouter()
-  const { scenarios, updateScenario, deleteScenario, addScenario, addDebt } = useStore()
+  const { addDebt } = useStore()
+  const { data: scenarios = [] } = useLoanScenarios()
+  const saveLoanScenario = useSaveLoanScenario()
+  const updateLoanScenario = useUpdateLoanScenario()
+  const deleteLoanScenario = useDeleteLoanScenario()
 
   const rows: Row[] = useMemo(() => scenarios.slice(0, 5).map((s) => {
     if (s.kind === 'car') {
@@ -100,7 +106,7 @@ export default function Scenarios() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => { updateScenario(s.id, { preferred: !s.preferred }); toast.success(s.preferred ? 'Removed preferred mark.' : 'Marked as preferred.') }}
+                              onClick={() => { updateLoanScenario.mutate({ id: s.id, patch: { preferred: !s.preferred } }); toast.success(s.preferred ? 'Removed preferred mark.' : 'Marked as preferred.') }}
                               aria-label="Toggle preferred scenario"
                               className={cn('rounded-full p-1', s.preferred ? 'text-warning' : 'text-muted-foreground/40 hover:text-warning')}
                             >
@@ -139,7 +145,19 @@ export default function Scenarios() {
                         <TableCell>
                           <div className="flex gap-0.5">
                             <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Duplicate scenario"
-                              onClick={() => { addScenario({ ...s, name: `${s.name} (copy)`, preferred: false }); toast.success('Scenario duplicated.') }}>
+                              onClick={() => {
+                                const { id: _id, createdAt: _createdAt, ...rest } = s
+                                saveLoanScenario.mutate({ ...rest, name: `${s.name} (copy)`, preferred: false }, {
+                                  onSuccess: () => toast.success('Scenario duplicated.'),
+                                  onError: (err) => {
+                                    if (err instanceof UpgradeRequiredError) {
+                                      toast.error(err.message, { action: { label: 'See plans', onClick: () => router.push('/pricing') } })
+                                      return
+                                    }
+                                    toast.error('Could not duplicate this scenario.')
+                                  },
+                                })
+                              }}>
                               <Copy className="h-3.5 w-3.5" />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit scenario"
@@ -147,7 +165,7 @@ export default function Scenarios() {
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Delete scenario"
-                              onClick={() => { deleteScenario(s.id); toast.success('Scenario deleted.') }}>
+                              onClick={() => { deleteLoanScenario.mutate(s.id); toast.success('Scenario deleted.') }}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>

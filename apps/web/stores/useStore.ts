@@ -6,12 +6,12 @@ import { persist } from 'zustand/middleware'
 import { uid } from '@/lib/format'
 import {
   generateSampleBudgets, generateSampleTransactions, sampleAccounts, sampleBills,
-  sampleCategories, sampleDebts, sampleGoals, sampleNotifications, sampleScenarios,
+  sampleCategories, sampleDebts, sampleGoals, sampleNotifications,
   sampleUser, sampleWatchlists,
 } from '@/data/sampleData'
 import type {
   Account, AppNotification, AppSettings, Bill, Budget, Category, DashboardWidget,
-  Debt, Goal, LoanScenario, OnboardingState, PayoffPlan, Transaction, UserProfile, Watchlist,
+  Debt, Goal, OnboardingState, PayoffPlan, Transaction, UserProfile, Watchlist,
 } from '@/types'
 
 export interface PennywardState {
@@ -29,7 +29,6 @@ export interface PennywardState {
   bills: Bill[]
   watchlists: Watchlist[]
   notifications: AppNotification[]
-  scenarios: LoanScenario[]
   dashboardWidgets: DashboardWidget[]
 
   // auth (frontend-only mock)
@@ -99,11 +98,6 @@ export interface PennywardState {
   deleteNotification: (id: string) => void
   clearNotifications: () => void
 
-  // scenarios
-  addScenario: (s: Omit<LoanScenario, 'id' | 'createdAt'>) => string
-  updateScenario: (id: string, patch: Partial<LoanScenario>) => void
-  deleteScenario: (id: string) => void
-
   // dashboard
   setDashboardWidgets: (w: DashboardWidget[]) => void
 
@@ -152,7 +146,6 @@ function sampleState() {
     bills: sampleBills,
     watchlists: sampleWatchlists,
     notifications: sampleNotifications,
-    scenarios: sampleScenarios,
     dashboardWidgets: defaultWidgets,
   }
 }
@@ -275,21 +268,13 @@ export const useStore = create<PennywardState>()(
       deleteNotification: (id) => set({ notifications: get().notifications.filter((n) => n.id !== id) }),
       clearNotifications: () => set({ notifications: [] }),
 
-      addScenario: (s) => {
-        const id = uid('scn')
-        set({ scenarios: [...get().scenarios, { ...s, id, createdAt: new Date().toISOString() }] })
-        return id
-      },
-      updateScenario: (id, patch) => set({ scenarios: get().scenarios.map((s) => (s.id === id ? { ...s, ...patch } : s)) }),
-      deleteScenario: (id) => set({ scenarios: get().scenarios.filter((s) => s.id !== id) }),
-
       setDashboardWidgets: (w) => set({ dashboardWidgets: w }),
 
       resetToSampleData: () => set(sampleState()),
       clearAllData: () => set({
         ...sampleState(),
         accounts: [], transactions: [], budgets: [], debts: [], payoffPlans: [],
-        goals: [], bills: [], notifications: [], scenarios: [], categories: sampleCategories,
+        goals: [], bills: [], notifications: [], categories: sampleCategories,
       }),
       importData: (json) => {
         try {

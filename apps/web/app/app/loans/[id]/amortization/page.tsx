@@ -8,7 +8,7 @@ import {
 import { format, parseISO } from 'date-fns'
 import { ChevronDown, ChevronRight, Download, Printer, Search } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStore } from '@/stores/useStore'
+import { useLoanScenarios } from '@/hooks/queries/useLoanScenarios'
 import { PageHeader } from '@/components/shared/Misc'
 import { ErrorState } from '@/components/shared/States'
 import { Button } from '@/components/ui/button'
@@ -25,7 +25,7 @@ import type { LoanResult } from '@/types'
 export default function Amortization() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const scenarios = useStore((s) => s.scenarios)
+  const { data: scenarios = [], isLoading } = useLoanScenarios()
   const scenario = scenarios.find((s) => s.id === id)
   const [view, setView] = useState<'table' | 'chart'>('table')
   const [search, setSearch] = useState('')
@@ -77,6 +77,8 @@ export default function Amortization() {
     }
     return rows
   }, [result, standard])
+
+  if (isLoading) return null
 
   if (!scenario || !result) {
     return (

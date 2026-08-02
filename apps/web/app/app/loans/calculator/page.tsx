@@ -7,7 +7,8 @@ import {
 import { format, parseISO } from 'date-fns'
 import { Save } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStore } from '@/stores/useStore'
+import { useSaveLoanScenario } from '@/hooks/queries/useLoanScenarios'
+import { UpgradeRequiredError } from '@/lib/fetchJSON'
 import { PageHeader } from '@/components/shared/Misc'
 import { AnimatedMoney } from '@/components/shared/Money'
 import { Button } from '@/components/ui/button'
@@ -22,7 +23,7 @@ import { formatCurrency, formatDate, round2 } from '@/lib/format'
 
 export default function LoanCalculator() {
   const router = useRouter()
-  const addScenario = useStore((s) => s.addScenario)
+  const saveLoanScenario = useSaveLoanScenario()
   const [i, setI] = useState({
     type: 'personal', loanAmount: 15000, apr: 9.5, termMonths: 48,
     startDate: format(new Date(), 'yyyy-MM-dd'), extraMonthly: 0, oneTimePayment: 0,
@@ -35,16 +36,29 @@ export default function LoanCalculator() {
   }), [i])
 
   const save = () => {
-    addScenario({
-      name: `${i.type === 'personal' ? 'Personal' : i.type === 'student' ? 'Student' : i.type === 'mortgage' ? 'Mortgage-style' : 'Custom'} loan — ${formatCurrency(i.loanAmount, { decimals: 0 })}`,
-      preferred: false, kind: 'general',
-      vehiclePrice: 0, downPayment: 0, tradeInValue: 0, tradeInOwed: 0, rebate: 0,
-      taxRate: 0, docFee: 0, registrationFee: 0, destinationFee: 0, dealerFees: 0,
-      loanAmount: i.loanAmount, apr: i.apr, termMonths: i.termMonths,
-      startDate: i.startDate, extraMonthly: i.extraMonthly, oneTimePayment: i.oneTimePayment,
-    })
-    toast.success('Scenario saved.')
-    router.push('/app/loans/scenarios')
+    saveLoanScenario.mutate(
+      {
+        name: `${i.type === 'personal' ? 'Personal' : i.type === 'student' ? 'Student' : i.type === 'mortgage' ? 'Mortgage-style' : 'Custom'} loan — ${formatCurrency(i.loanAmount, { decimals: 0 })}`,
+        preferred: false, kind: 'general',
+        vehiclePrice: 0, downPayment: 0, tradeInValue: 0, tradeInOwed: 0, rebate: 0,
+        taxRate: 0, docFee: 0, registrationFee: 0, destinationFee: 0, dealerFees: 0,
+        loanAmount: i.loanAmount, apr: i.apr, termMonths: i.termMonths,
+        startDate: i.startDate, extraMonthly: i.extraMonthly, oneTimePayment: i.oneTimePayment,
+      },
+      {
+        onSuccess: () => {
+          toast.success('Scenario saved.')
+          router.push('/app/loans/scenarios')
+        },
+        onError: (err) => {
+          if (err instanceof UpgradeRequiredError) {
+            toast.error(err.message, { action: { label: 'See plans', onClick: () => router.push('/pricing') } })
+            return
+          }
+          toast.error('Could not save this scenario.')
+        },
+      },
+    )
   }
 
   return (
@@ -52,7 +66,7 @@ export default function LoanCalculator() {
       <PageHeader
         title="Loan calculator"
         description="Personal, student, mortgage-style, and custom installment loans."
-        actions={<Button onClick={save}><Save className="mr-1.5 h-4 w-4" />Save scenario</Button>}
+        actions={<Button onClick={save} disabled={saveLoanScenario.isPending}><Save className="mr-1.5 h-4 w-4" />Save scenario</Button>}
       />
 
       <div className="grid gap-5 lg:grid-cols-5">
