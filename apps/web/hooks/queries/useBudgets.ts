@@ -8,6 +8,8 @@ type UpsertBudgetInput = {
   entries: { categoryId: string; budgeted: number; rollover: boolean }[]
   expectedIncome: number
   savingsTarget: number
+  /** Only takes effect when creating a new month's budget — shares it with the caller's household. */
+  shared?: boolean
 }
 
 export function useBudget(month: string) {

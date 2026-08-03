@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { GET, PUT } from '@/app/api/budgets/route'
+import { DELETE as removeMember } from '@/app/api/household/members/[userId]/route'
 import { db } from '@/lib/db'
 
 let currentUserId = 'user_test'
@@ -180,5 +181,28 @@ describe('shared household budgets', () => {
     const res = await GET(new Request('http://x/api/budgets?month=2026-09'))
     const body = await res.json()
     expect(body).toBeNull()
+  })
+
+  it('removing the sharing member revokes the household\'s access to their shared budget', async () => {
+    currentUserId = 'user_other'
+    await PUT(new Request('http://x', {
+      method: 'PUT',
+      body: JSON.stringify({ month: '2026-10', entries: [], expectedIncome: 700, savingsTarget: 0, shared: true }),
+    }))
+
+    currentUserId = 'user_test'
+    const removeRes = await removeMember(new Request('http://x', { method: 'DELETE' }), { params: Promise.resolve({ userId: 'user_other' }) })
+    expect(removeRes.status).toBe(200)
+
+    // The owner (still in the household) can no longer see the ex-member's budget.
+    const ownerRes = await GET(new Request('http://x/api/budgets?month=2026-10'))
+    expect(await ownerRes.json()).toBeNull()
+
+    // The ex-member gets their own budget back (falls through to the personal lookup).
+    currentUserId = 'user_other'
+    const exMemberRes = await GET(new Request('http://x/api/budgets?month=2026-10'))
+    const exMemberBody = await exMemberRes.json()
+    expect(exMemberBody).not.toBeNull()
+    expect(exMemberBody.shared).toBe(false)
   })
 })

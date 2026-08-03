@@ -71,6 +71,8 @@ export interface Budget {
   entries: BudgetEntry[]
   expectedIncome: number
   savingsTarget: number
+  /** Absent for the legacy sample/demo budgets; the real API always sends it. */
+  shared?: boolean
 }
 
 export type DebtType =

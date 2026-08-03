@@ -16,5 +16,12 @@ import { PLAN_LIMITS } from '@/lib/plan'
 export const GET = withAuthErrorHandling(async () => {
   const { userId, plan } = await getRequiredSession()
   const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true, email: true } })
-  return NextResponse.json({ name: user.name, email: user.email, plan, limits: PLAN_LIMITS[plan] })
+  const limits = PLAN_LIMITS[plan]
+  // JSON.stringify silently turns Infinity into null — serialize that
+  // explicitly here rather than let it happen implicitly, so the client type
+  // (`number | null`) matches what actually goes over the wire.
+  const serializedLimits = Object.fromEntries(
+    Object.entries(limits).map(([k, v]) => [k, typeof v === 'number' && !Number.isFinite(v) ? null : v]),
+  )
+  return NextResponse.json({ name: user.name, email: user.email, plan, limits: serializedLimits })
 })

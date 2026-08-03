@@ -165,6 +165,7 @@ model Budget {
   entries   BudgetEntry[]
 
   @@unique([userId, month])
+  @@index([householdId, month])
 }
 
 model BudgetEntry {

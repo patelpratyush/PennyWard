@@ -51,8 +51,17 @@ export const POST = withAuthErrorHandling(async (req: Request) => {
     const parsedDate = parse(rawDate, dateFormat, new Date())
     if (!isValid(parsedDate)) { review.push(`Unparseable date: ${rawDate}`); continue }
 
-    const amount = round2(Math.abs(parseFloat(rawAmount)))
-    const type = parseFloat(rawAmount) >= 0 ? 'income' : 'expense'
+    // Real bank exports commonly wrap negatives in parens and thousands-separate
+    // with commas (`$1,234.56`, `(45.00)`) — strip formatting before parsing,
+    // and never let a malformed cell throw mid-loop after earlier rows already
+    // committed.
+    const cleanedAmount = rawAmount.trim().replace(/[$,\s]/g, '')
+    const isParenNegative = /^\(.*\)$/.test(cleanedAmount)
+    const numericAmount = parseFloat(isParenNegative ? cleanedAmount.slice(1, -1) : cleanedAmount)
+    if (!Number.isFinite(numericAmount)) { review.push(`Unparseable amount: ${rawAmount}`); continue }
+
+    const amount = round2(Math.abs(numericAmount))
+    const type = (isParenNegative || numericAmount < 0) ? 'expense' : 'income'
     const payeeNorm = normalizePayee(rawPayee)
     const dateStr = parsedDate.toISOString().slice(0, 10)
     const hash = importHash(accountId, dateStr, amount, payeeNorm)
@@ -60,10 +69,18 @@ export const POST = withAuthErrorHandling(async (req: Request) => {
     const dup = await db.transaction.findUnique({ where: { userId_importHash: { userId, importHash: hash } } })
     if (dup) { duplicates++; continue }
 
-    const matchedRule = rules.find((r) =>
-      r.matchType === 'contains' ? payeeNorm.includes(r.pattern.toLowerCase()) :
-      r.matchType === 'equals' ? payeeNorm === r.pattern.toLowerCase() :
-      new RegExp(r.pattern, 'i').test(payeeNorm))
+    // A rule's regex pattern is only validated at save time going forward
+    // (lib/validation/rules.ts) — this guards against any already-saved rows
+    // from before that check existed, so one bad pattern can't 500 the import.
+    let matchedRule: (typeof rules)[number] | undefined
+    try {
+      matchedRule = rules.find((r) =>
+        r.matchType === 'contains' ? payeeNorm.includes(r.pattern.toLowerCase()) :
+        r.matchType === 'equals' ? payeeNorm === r.pattern.toLowerCase() :
+        new RegExp(r.pattern, 'i').test(payeeNorm))
+    } catch {
+      matchedRule = undefined
+    }
 
     await db.transaction.create({
       data: {

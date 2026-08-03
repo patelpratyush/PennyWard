@@ -11,3 +11,8 @@ export async function getHouseholdForUser(userId: string): Promise<{ id: string;
   if (!membership) return null
   return { id: membership.householdId, role: membership.role }
 }
+
+export async function getHouseholdMemberIds(householdId: string): Promise<string[]> {
+  const members = await db.householdMember.findMany({ where: { householdId }, select: { userId: true } })
+  return members.map((m) => m.userId)
+}

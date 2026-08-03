@@ -37,14 +37,19 @@ function GoalsInner() {
   const goalsAllowed = me?.limits.goals ?? true
 
   useEffect(() => {
-    if (searchParams.get('add') === '1' && goalsAllowed) {
+    if (searchParams.get('add') !== '1') return
+    // Wait for the real plan to load before deciding — `goalsAllowed` defaults
+    // to true while `me` is still fetching, which would otherwise open the
+    // dialog for a Free user and strip `add` before the gate ever applies.
+    if (me === undefined) return
+    if (goalsAllowed) {
       setEditing(null)
       setDialogOpen(true)
-      const next = new URLSearchParams(searchParams.toString())
-      next.delete('add')
-      router.replace(next.toString() ? `${pathname}?${next.toString()}` : pathname)
     }
-  }, [searchParams, pathname, router])
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete('add')
+    router.replace(next.toString() ? `${pathname}?${next.toString()}` : pathname)
+  }, [searchParams, pathname, router, me, goalsAllowed])
 
   return (
     <div>

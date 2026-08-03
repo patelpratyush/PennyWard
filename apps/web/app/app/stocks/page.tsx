@@ -30,6 +30,7 @@ export default function Stocks() {
   // this caps the count client-side, matching the pricing page. Not a
   // security boundary, since there's no server resource to guard.
   const { data: me } = useMe()
+  // `??` also converts a real `null` (the wire form of PLAN_LIMITS' Infinity) to Infinity here, not just a missing `me`.
   const watchlistLimit = me?.limits.maxWatchlists ?? Infinity
   const atWatchlistLimit = watchlists.length >= watchlistLimit
   const openNewWatchlist = () => {

@@ -1,32 +1,41 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
-import { getHouseholdForUser } from '@/lib/household'
+import { getHouseholdForUser, getHouseholdMemberIds } from '@/lib/household'
 import { withAuthErrorHandling } from '@/lib/withAuth'
 import { assertCategoryOwned } from '@/lib/assertOwned'
 import { upsertBudgetSchema } from '@/lib/validation/budgets'
 import { round2 } from '@/lib/format'
 import { PLAN_LIMITS, upgradeRequired } from '@/lib/plan'
 
+/**
+ * A caller can see at most one budget per month: their own personal one, or —
+ * only if they don't have a personal one for that month — the one shared to
+ * their household. Personal always takes precedence, so GET and PUT can never
+ * disagree about which row they mean (no OR-across-two-owners ambiguity).
+ */
+async function findVisibleBudget(userId: string, month: string, householdId: string | undefined) {
+  const personal = await db.budget.findUnique({ where: { userId_month: { userId, month } } })
+  if (personal) return personal
+  if (!householdId) return null
+  return db.budget.findFirst({ where: { householdId, month } })
+}
+
 export const GET = withAuthErrorHandling(async (req: Request) => {
   const { userId } = await getRequiredSession()
   const month = new URL(req.url).searchParams.get('month')
   if (!month) return NextResponse.json({ error: 'month query param required' }, { status: 400 })
   const householdId = (await getHouseholdForUser(userId))?.id
-  // A month has at most one budget the caller can see: their own, or the one
-  // shared to their household (if any) — households are exclusive to the
-  // Household plan, so a user can never be a member of more than one.
-  const budget = await db.budget.findFirst({
-    where: { month, OR: [{ userId }, ...(householdId ? [{ householdId }] : [])] },
-    include: { entries: true },
-  })
+  const budget = await findVisibleBudget(userId, month, householdId)
   if (!budget) return NextResponse.json(null)
+  const entries = await db.budgetEntry.findMany({ where: { budgetId: budget.id } })
   return NextResponse.json({
     id: budget.id,
     month: budget.month,
     expectedIncome: round2(Number(budget.expectedIncome)),
     savingsTarget: round2(Number(budget.savingsTarget)),
-    entries: budget.entries.map((e) => ({ categoryId: e.categoryId, budgeted: round2(Number(e.budgeted)), rollover: e.rollover })),
+    shared: budget.householdId != null,
+    entries: entries.map((e) => ({ categoryId: e.categoryId, budgeted: round2(Number(e.budgeted)), rollover: e.rollover })),
   })
 })
 
@@ -36,16 +45,17 @@ export const PUT = withAuthErrorHandling(async (req: Request) => {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   const { month, entries, expectedIncome, savingsTarget, shared } = parsed.data
 
+  const householdId = (await getHouseholdForUser(userId))?.id
+  const existingForMonth = await findVisibleBudget(userId, month, householdId)
+
+  // A shared budget's entries may reference a category owned by any member of
+  // the household, not just the caller — the budget is jointly edited.
+  const extraOwnerIds = existingForMonth?.householdId ? await getHouseholdMemberIds(existingForMonth.householdId) : []
   for (const entry of entries) {
-    if (!(await assertCategoryOwned(entry.categoryId, userId))) {
-      return NextResponse.json({ error: `Category not found: ${entry.categoryId}` }, { status: 404 })
+    if (!(await assertCategoryOwned(entry.categoryId, userId, extraOwnerIds))) {
+      return NextResponse.json({ error: `Category not found: ${entry.categoryId}` }, { status: 400 })
     }
   }
-
-  const householdId = (await getHouseholdForUser(userId))?.id
-  const existingForMonth = await db.budget.findFirst({
-    where: { month, OR: [{ userId }, ...(householdId ? [{ householdId }] : [])] },
-  })
 
   // Only a genuinely new month counts against the cap — editing a month the
   // caller (or their household) already has must never be blocked by a limit
@@ -74,11 +84,13 @@ export const PUT = withAuthErrorHandling(async (req: Request) => {
           ...(shared && householdId ? { householdId } : {}),
         },
       })
-  await db.budgetEntry.deleteMany({ where: { budgetId: budget.id } })
-  if (entries.length > 0) {
-    await db.budgetEntry.createMany({
-      data: entries.map((e) => ({ categoryId: e.categoryId, budgeted: round2(e.budgeted), rollover: e.rollover, budgetId: budget.id })),
-    })
-  }
+  await db.$transaction([
+    db.budgetEntry.deleteMany({ where: { budgetId: budget.id } }),
+    ...(entries.length > 0
+      ? [db.budgetEntry.createMany({
+          data: entries.map((e) => ({ categoryId: e.categoryId, budgeted: round2(e.budgeted), rollover: e.rollover, budgetId: budget.id })),
+        })]
+      : []),
+  ])
   return NextResponse.json({ id: budget.id })
 })

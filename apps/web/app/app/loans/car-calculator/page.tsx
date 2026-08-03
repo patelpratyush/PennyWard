@@ -11,6 +11,7 @@ import { Copy, Download, GitCompareArrows, RotateCcw, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
 import { useSaveLoanScenario } from '@/hooks/queries/useLoanScenarios'
+import { useCreateDebt } from '@/hooks/queries/useDebts'
 import { UpgradeRequiredError } from '@/lib/fetchJSON'
 import { PageHeader } from '@/components/shared/Misc'
 import { AnimatedMoney } from '@/components/shared/Money'
@@ -44,8 +45,9 @@ function MoneyInput({ label, value, onChange, prefix = '$', step = '1' }: {
 
 export default function CarCalculator() {
   const router = useRouter()
-  const { addDebt, pushNotification } = useStore()
+  const { pushNotification } = useStore()
   const saveLoanScenario = useSaveLoanScenario()
+  const createDebt = useCreateDebt()
   const [i, setI] = useState(defaults)
   const [aff, setAff] = useState({ grossIncome: 7200, netIncome: 5400, existingDebtPayments: 952, insurance: 165, fuel: 170, maintenance: 60, parkingTolls: 40 })
 
@@ -394,14 +396,18 @@ export default function CarCalculator() {
             <CardContent className="flex flex-wrap gap-2 p-4">
               <Button variant="outline" onClick={() => saveScenario(true)}><Copy className="mr-1.5 h-4 w-4" />Duplicate scenario</Button>
               <Button variant="outline" onClick={() => {
-                addDebt({
+                createDebt.mutate({
                   name: i.name || 'New auto loan', lender: 'Auto lender', type: 'auto_loan',
                   balance: r.amountFinanced, originalBalance: r.amountFinanced, apr: i.apr,
                   minimumPayment: r.standardMonthlyPayment, dueDay: Number(i.startDate.slice(8, 10)) || 15,
+                }, {
+                  onSuccess: () => {
+                    pushNotification({ type: 'debt', title: 'Loan created', message: `${i.name || 'Auto loan'} was added to your debts.` })
+                    toast.success('Active loan created from this scenario.')
+                    router.push('/app/debt')
+                  },
+                  onError: () => toast.error('Could not create this loan.'),
                 })
-                pushNotification({ type: 'debt', title: 'Loan created', message: `${i.name || 'Auto loan'} was added to your debts.` })
-                toast.success('Active loan created from this scenario.')
-                router.push('/app/debt')
               }}>Create active loan</Button>
               <Button variant="outline" onClick={async () => {
                 const id = await saveScenario()

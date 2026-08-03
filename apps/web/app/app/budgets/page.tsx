@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 import { UpgradeRequiredError } from '@/lib/fetchJSON'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { useBudget, useUpsertBudget } from '@/hooks/queries/useBudgets'
+import { useHousehold } from '@/hooks/queries/useHousehold'
 import { useAllTransactions } from '@/hooks/queries/useAllTransactions'
 import { PageHeader, StatusBadge } from '@/components/shared/Misc'
 import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
@@ -48,6 +49,10 @@ export default function Budgets() {
   const [moveTarget, setMoveTarget] = useState('')
   const [moveAmount, setMoveAmount] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([])
+  const { data: household } = useHousehold()
+  // Only meaningful before the month's budget exists — sharing is decided at
+  // creation and can't be flipped afterward (see app/api/budgets/route.ts).
+  const [shareNew, setShareNew] = useState(false)
 
   const monthDate = addMonths(new Date(), monthOffset)
   const month = format(monthDate, 'yyyy-MM')
@@ -85,6 +90,9 @@ export default function Budgets() {
       entries: patch.entries ?? budget?.entries ?? [],
       expectedIncome: patch.expectedIncome ?? budget?.expectedIncome ?? 0,
       savingsTarget: patch.savingsTarget ?? budget?.savingsTarget ?? 0,
+      // Only takes effect on first creation of this month's budget — ignored
+      // by the server once a budget already exists.
+      shared: shareNew,
     }
     upsertMutation.mutate(payload, {
       onSuccess: () => { if (successMessage) toast.success(successMessage) },
@@ -237,6 +245,13 @@ export default function Budgets() {
               aria-label="Savings target"
             />
           </label>
+          {household && !budget && (
+            <label className="flex items-center gap-2 text-sm">
+              Share with household
+              <Switch checked={shareNew} onCheckedChange={setShareNew} aria-label="Share with household" />
+            </label>
+          )}
+          {budget?.shared && <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">Shared with household</span>}
           {bt && (
             <span className="ml-auto text-sm text-muted-foreground">
               <span className={cn('font-semibold tnum', bt.pctUsed > 100 ? 'text-destructive' : 'text-foreground')}>{Math.round(bt.pctUsed)}%</span> of budget used

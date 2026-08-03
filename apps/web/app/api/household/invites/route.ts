@@ -5,11 +5,17 @@ import { getRequiredSession } from '@/lib/session'
 import { getHouseholdForUser } from '@/lib/household'
 import { withAuthErrorHandling } from '@/lib/withAuth'
 import { createInviteSchema } from '@/lib/validation/household'
+import { upgradeRequired } from '@/lib/plan'
 
 const INVITE_TTL_DAYS = 7
 
 export const POST = withAuthErrorHandling(async (req: Request) => {
-  const { userId } = await getRequiredSession()
+  const { userId, plan } = await getRequiredSession()
+  // Re-checked here, not just at household creation — a downgraded owner
+  // should not be able to keep growing a household they no longer pay for.
+  if (plan !== 'household') {
+    return NextResponse.json(upgradeRequired('Inviting members requires the Household plan.'), { status: 403 })
+  }
   const membership = await getHouseholdForUser(userId)
   if (!membership) return NextResponse.json({ error: 'Not a member of a household' }, { status: 404 })
   if (membership.role !== 'owner') return NextResponse.json({ error: 'Only the household owner can invite members' }, { status: 403 })

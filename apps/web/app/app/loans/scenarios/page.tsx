@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip as R
 import { Copy, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
-import { useStore } from '@/stores/useStore'
+import { useCreateDebt } from '@/hooks/queries/useDebts'
 import { useLoanScenarios, useSaveLoanScenario, useUpdateLoanScenario, useDeleteLoanScenario } from '@/hooks/queries/useLoanScenarios'
 import { UpgradeRequiredError } from '@/lib/fetchJSON'
 import { PageHeader } from '@/components/shared/Misc'
@@ -32,11 +32,11 @@ interface Row {
 
 export default function Scenarios() {
   const router = useRouter()
-  const { addDebt } = useStore()
   const { data: scenarios = [] } = useLoanScenarios()
   const saveLoanScenario = useSaveLoanScenario()
   const updateLoanScenario = useUpdateLoanScenario()
   const deleteLoanScenario = useDeleteLoanScenario()
+  const createDebt = useCreateDebt()
 
   const rows: Row[] = useMemo(() => scenarios.slice(0, 5).map((s) => {
     if (s.kind === 'car') {
@@ -106,7 +106,10 @@ export default function Scenarios() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => { updateLoanScenario.mutate({ id: s.id, patch: { preferred: !s.preferred } }); toast.success(s.preferred ? 'Removed preferred mark.' : 'Marked as preferred.') }}
+                              onClick={() => updateLoanScenario.mutate({ id: s.id, patch: { preferred: !s.preferred } }, {
+                                onSuccess: () => toast.success(s.preferred ? 'Removed preferred mark.' : 'Marked as preferred.'),
+                                onError: () => toast.error('Could not update this scenario.'),
+                              })}
                               aria-label="Toggle preferred scenario"
                               className={cn('rounded-full p-1', s.preferred ? 'text-warning' : 'text-muted-foreground/40 hover:text-warning')}
                             >
@@ -165,7 +168,10 @@ export default function Scenarios() {
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="Delete scenario"
-                              onClick={() => { deleteLoanScenario.mutate(s.id); toast.success('Scenario deleted.') }}>
+                              onClick={() => deleteLoanScenario.mutate(s.id, {
+                                onSuccess: () => toast.success('Scenario deleted.'),
+                                onError: () => toast.error('Could not delete this scenario.'),
+                              })}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -207,14 +213,18 @@ export default function Scenarios() {
                       <p className="text-xs text-muted-foreground tnum">{formatCurrency(r.payment, { decimals: 0 })}/mo · {r.scenario.termMonths} months</p>
                     </div>
                     <Button size="sm" variant="outline" onClick={() => {
-                      addDebt({
+                      createDebt.mutate({
                         name: r.scenario.name, lender: r.scenario.kind === 'car' ? 'Auto lender' : 'Lender',
                         type: r.scenario.kind === 'car' ? 'auto_loan' : 'personal_loan',
                         balance: r.financed, originalBalance: r.financed, apr: r.scenario.apr,
                         minimumPayment: r.payment, dueDay: Number(r.scenario.startDate.slice(8, 10)) || 15,
+                      }, {
+                        onSuccess: () => {
+                          toast.success('Converted to an active loan in Debt & Loans.')
+                          router.push('/app/debt')
+                        },
+                        onError: () => toast.error('Could not create this loan.'),
                       })
-                      toast.success('Converted to an active loan in Debt & Loans.')
-                      router.push('/app/debt')
                     }}>
                       Create active loan
                     </Button>

@@ -5,11 +5,20 @@ import type { PLAN_LIMITS } from '@/lib/plan'
 
 type Plan = 'free' | 'pro' | 'household'
 
+// `Infinity` in PLAN_LIMITS serializes to `null` over JSON (see app/api/me/
+// route.ts) — every numeric field arrives as `number | null`, null meaning
+// unlimited. Non-numeric fields (booleans) pass through unchanged.
+type SerializedLimits = {
+  [K in keyof (typeof PLAN_LIMITS)[Plan]]: (typeof PLAN_LIMITS)[Plan][K] extends number
+    ? number | null
+    : (typeof PLAN_LIMITS)[Plan][K]
+}
+
 interface Me {
   name: string | null
   email: string | null
   plan: Plan
-  limits: (typeof PLAN_LIMITS)[Plan]
+  limits: SerializedLimits
 }
 
 /**

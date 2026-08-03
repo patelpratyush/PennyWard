@@ -22,6 +22,12 @@ export const DELETE = withAuthErrorHandling(async (_req: Request, { params }: { 
     return NextResponse.json({ error: 'The owner cannot be removed — delete the household instead' }, { status: 400 })
   }
 
-  await db.householdMember.delete({ where: { id: target.id } })
+  // Leaving/being removed also revokes the household's access to any budgets
+  // the departing member had shared, and restores their own visibility over
+  // them (a null householdId falls back to the personal userId lookup).
+  await db.$transaction([
+    db.householdMember.delete({ where: { id: target.id } }),
+    db.budget.updateMany({ where: { userId: targetUserId, householdId: membership.id }, data: { householdId: null } }),
+  ])
   return NextResponse.json({ ok: true })
 })

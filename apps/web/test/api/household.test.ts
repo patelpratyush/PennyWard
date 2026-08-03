@@ -58,7 +58,7 @@ describe('household invites', () => {
 
   it('accepts a valid invite and adds the invitee as a member', async () => {
     await POST(new Request('http://x', { method: 'POST', body: JSON.stringify({ name: 'Home' }) }))
-    const invite = await (await inviteCreate(new Request('http://x', { method: 'POST', body: JSON.stringify({ email: 'new@example.com' }) }))).json()
+    const invite = await (await inviteCreate(new Request('http://x', { method: 'POST', body: JSON.stringify({ email: 'member@example.com' }) }))).json()
 
     currentUserId = 'member_user'
     const res = await inviteAccept(new Request('http://x', { method: 'POST' }), { params: Promise.resolve({ token: invite.token }) })
@@ -69,9 +69,29 @@ describe('household invites', () => {
     expect(householdBody.members.map((m: { userId: string }) => m.userId)).toContain('member_user')
   })
 
-  it('rejects an already-accepted invite on a second accept attempt', async () => {
+  it('rejects acceptance by a user whose email does not match the invite', async () => {
     await POST(new Request('http://x', { method: 'POST', body: JSON.stringify({ name: 'Home' }) }))
     const invite = await (await inviteCreate(new Request('http://x', { method: 'POST', body: JSON.stringify({ email: 'new@example.com' }) }))).json()
+
+    currentUserId = 'member_user'
+    const res = await inviteAccept(new Request('http://x', { method: 'POST' }), { params: Promise.resolve({ token: invite.token }) })
+    expect(res.status).toBe(403)
+    const membership = await db.householdMember.findFirst({ where: { userId: 'member_user' } })
+    expect(membership).toBeNull()
+  })
+
+  it('rejects invite creation once the owner has been downgraded off the Household plan', async () => {
+    await POST(new Request('http://x', { method: 'POST', body: JSON.stringify({ name: 'Home' }) }))
+    currentPlan = 'pro'
+    const res = await inviteCreate(new Request('http://x', { method: 'POST', body: JSON.stringify({ email: 'new@example.com' }) }))
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error).toBe('upgrade_required')
+  })
+
+  it('rejects an already-accepted invite on a second accept attempt', async () => {
+    await POST(new Request('http://x', { method: 'POST', body: JSON.stringify({ name: 'Home' }) }))
+    const invite = await (await inviteCreate(new Request('http://x', { method: 'POST', body: JSON.stringify({ email: 'member@example.com' }) }))).json()
 
     currentUserId = 'member_user'
     await inviteAccept(new Request('http://x', { method: 'POST' }), { params: Promise.resolve({ token: invite.token }) })
