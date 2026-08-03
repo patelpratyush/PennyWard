@@ -10,6 +10,7 @@ import {
   ArrowRight, CalendarClock, Eye, EyeOff, Lightbulb, RotateCcw, Settings2,
 } from 'lucide-react'
 import { useStore } from '@/stores/useStore'
+import { useMe } from '@/hooks/queries/useMe'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useTransactions } from '@/hooks/queries/useTransactions'
 import { useAllTransactions } from '@/hooks/queries/useAllTransactions'
@@ -73,6 +74,8 @@ export default function Dashboard() {
   // categories) are read from the real API via React Query. Goals, bills, and
   // watchlists/stocks are out of scope for this plan and stay on the legacy store.
   const { profile, goals, bills, watchlists, dashboardWidgets, setDashboardWidgets } = useStore()
+  const { data: me } = useMe()
+  const insightsAllowed = me?.limits.insights ?? true
   const [range, setRange] = useState('this-month')
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar')
   const [customOpen, setCustomOpen] = useState(false)
@@ -524,7 +527,13 @@ export default function Dashboard() {
 
         {visible('insights') && (
           <ChartCard title="Financial insights" description="Rules-based, from your data" className="lg:col-span-1">
-            {insights.length === 0 ? (
+            {!insightsAllowed ? (
+              <EmptyState
+                title="Insights are a Pro feature"
+                description="Upgrade to see personalized, rules-based insights from your own data."
+                actionLabel="See plans" actionHref="/pricing"
+              />
+            ) : insights.length === 0 ? (
               <EmptyState title="No insights yet" description="Insights appear as Pennyward learns your patterns." />
             ) : (
               <ul className="space-y-3">

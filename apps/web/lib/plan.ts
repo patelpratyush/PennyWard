@@ -36,6 +36,13 @@ export const PLAN_LIMITS: Record<Plan, {
    * 3-month window. Client-only — see the file-level doc comment above.
    */
   advancedReports: boolean
+  /**
+   * Dashboard "Financial insights" card (rule-based, derived from data the
+   * user already sees elsewhere). Was rendered unconditionally to everyone
+   * despite the pricing page claiming it's Pro-only. Client-only gate, same
+   * footing as `goals`/`maxWatchlists`.
+   */
+  insights: boolean
 }> = {
   free: {
     maxDebtPayoffScenarios: 1,
@@ -46,6 +53,7 @@ export const PLAN_LIMITS: Record<Plan, {
     dataExport: false,
     goals: false,
     advancedReports: false,
+    insights: false,
   },
   pro: {
     maxDebtPayoffScenarios: Infinity,
@@ -56,6 +64,7 @@ export const PLAN_LIMITS: Record<Plan, {
     dataExport: true,
     goals: true,
     advancedReports: true,
+    insights: true,
   },
   household: {
     maxDebtPayoffScenarios: Infinity,
@@ -66,6 +75,7 @@ export const PLAN_LIMITS: Record<Plan, {
     dataExport: true,
     goals: true,
     advancedReports: true,
+    insights: true,
   },
 }
 
