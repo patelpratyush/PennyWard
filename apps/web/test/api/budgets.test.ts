@@ -124,3 +124,61 @@ describe('PUT /api/budgets — Free plan cap', () => {
     expect(second.status).toBe(200)
   })
 })
+
+describe('shared household budgets', () => {
+  let householdId: string
+
+  beforeEach(async () => {
+    await db.householdMember.deleteMany({ where: { userId: { in: ['user_test', 'user_other'] } } })
+    await db.household.deleteMany({ where: { ownerId: 'user_test' } })
+    const household = await db.household.create({ data: { name: 'Test household', ownerId: 'user_test' } })
+    householdId = household.id
+    await db.householdMember.create({ data: { householdId, userId: 'user_test', role: 'owner' } })
+    await db.householdMember.create({ data: { householdId, userId: 'user_other', role: 'member' } })
+    currentPlan = 'household'
+  })
+
+  it('a member can see and edit a budget another member created as shared', async () => {
+    const createRes = await PUT(new Request('http://x', {
+      method: 'PUT',
+      body: JSON.stringify({ month: '2026-07', entries: [], expectedIncome: 1000, savingsTarget: 0, shared: true }),
+    }))
+    expect(createRes.status).toBe(200)
+
+    currentUserId = 'user_other'
+    const getRes = await GET(new Request('http://x/api/budgets?month=2026-07'))
+    const body = await getRes.json()
+    expect(body).not.toBeNull()
+    expect(body.expectedIncome).toBe(1000)
+
+    const editRes = await PUT(new Request('http://x', {
+      method: 'PUT',
+      body: JSON.stringify({ month: '2026-07', entries: [], expectedIncome: 2000, savingsTarget: 0 }),
+    }))
+    expect(editRes.status).toBe(200)
+    const count = await db.budget.count({ where: { householdId, month: '2026-07' } })
+    expect(count).toBe(1)
+  })
+
+  it('a non-member never sees a shared budget', async () => {
+    await PUT(new Request('http://x', {
+      method: 'PUT',
+      body: JSON.stringify({ month: '2026-07', entries: [], expectedIncome: 1000, savingsTarget: 0, shared: true }),
+    }))
+    currentUserId = 'user_outsider'
+    const res = await GET(new Request('http://x/api/budgets?month=2026-07'))
+    const body = await res.json()
+    expect(body).toBeNull()
+  })
+
+  it('a budget created without shared: true stays personal, invisible to other members', async () => {
+    await PUT(new Request('http://x', {
+      method: 'PUT',
+      body: JSON.stringify({ month: '2026-09', entries: [], expectedIncome: 500, savingsTarget: 0 }),
+    }))
+    currentUserId = 'user_other'
+    const res = await GET(new Request('http://x/api/budgets?month=2026-09'))
+    const body = await res.json()
+    expect(body).toBeNull()
+  })
+})

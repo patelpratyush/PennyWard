@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
+import { getHouseholdForUser } from '@/lib/household'
 import { withAuthErrorHandling } from '@/lib/withAuth'
 import { assertCategoryOwned } from '@/lib/assertOwned'
 import { upsertBudgetSchema } from '@/lib/validation/budgets'
@@ -11,7 +12,14 @@ export const GET = withAuthErrorHandling(async (req: Request) => {
   const { userId } = await getRequiredSession()
   const month = new URL(req.url).searchParams.get('month')
   if (!month) return NextResponse.json({ error: 'month query param required' }, { status: 400 })
-  const budget = await db.budget.findUnique({ where: { userId_month: { userId, month } }, include: { entries: true } })
+  const householdId = (await getHouseholdForUser(userId))?.id
+  // A month has at most one budget the caller can see: their own, or the one
+  // shared to their household (if any) — households are exclusive to the
+  // Household plan, so a user can never be a member of more than one.
+  const budget = await db.budget.findFirst({
+    where: { month, OR: [{ userId }, ...(householdId ? [{ householdId }] : [])] },
+    include: { entries: true },
+  })
   if (!budget) return NextResponse.json(null)
   return NextResponse.json({
     id: budget.id,
@@ -26,7 +34,7 @@ export const PUT = withAuthErrorHandling(async (req: Request) => {
   const { userId, plan } = await getRequiredSession()
   const parsed = upsertBudgetSchema.safeParse(await req.json())
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
-  const { month, entries, expectedIncome, savingsTarget } = parsed.data
+  const { month, entries, expectedIncome, savingsTarget, shared } = parsed.data
 
   for (const entry of entries) {
     if (!(await assertCategoryOwned(entry.categoryId, userId))) {
@@ -34,28 +42,38 @@ export const PUT = withAuthErrorHandling(async (req: Request) => {
     }
   }
 
+  const householdId = (await getHouseholdForUser(userId))?.id
+  const existingForMonth = await db.budget.findFirst({
+    where: { month, OR: [{ userId }, ...(householdId ? [{ householdId }] : [])] },
+  })
+
   // Only a genuinely new month counts against the cap — editing a month the
-  // user already has (the far more common request, via this same upsert)
-  // must never be blocked by a limit meant to cap how many months they hold.
+  // caller (or their household) already has must never be blocked by a limit
+  // meant to cap how many distinct months they hold. In practice this never
+  // fires for a shared budget: only the Household plan can share one, and
+  // that plan's maxBudgetMonths is already unlimited.
   const limit = PLAN_LIMITS[plan].maxBudgetMonths
-  if (Number.isFinite(limit)) {
-    const existingForMonth = await db.budget.findUnique({ where: { userId_month: { userId, month } } })
-    if (!existingForMonth) {
-      const monthCount = await db.budget.count({ where: { userId } })
-      if (monthCount >= limit) {
-        return NextResponse.json(
-          upgradeRequired(`The Free plan keeps ${limit} budget month. Upgrade to Pro for unlimited months.`),
-          { status: 403 },
-        )
-      }
+  if (Number.isFinite(limit) && !existingForMonth) {
+    const monthCount = await db.budget.count({ where: { userId } })
+    if (monthCount >= limit) {
+      return NextResponse.json(
+        upgradeRequired(`The Free plan keeps ${limit} budget month. Upgrade to Pro for unlimited months.`),
+        { status: 403 },
+      )
     }
   }
 
-  const budget = await db.budget.upsert({
-    where: { userId_month: { userId, month } },
-    create: { userId, month, expectedIncome: round2(expectedIncome), savingsTarget: round2(savingsTarget) },
-    update: { expectedIncome: round2(expectedIncome), savingsTarget: round2(savingsTarget) },
-  })
+  const budget = existingForMonth
+    ? await db.budget.update({
+        where: { id: existingForMonth.id },
+        data: { expectedIncome: round2(expectedIncome), savingsTarget: round2(savingsTarget) },
+      })
+    : await db.budget.create({
+        data: {
+          userId, month, expectedIncome: round2(expectedIncome), savingsTarget: round2(savingsTarget),
+          ...(shared && householdId ? { householdId } : {}),
+        },
+      })
   await db.budgetEntry.deleteMany({ where: { budgetId: budget.id } })
   if (entries.length > 0) {
     await db.budgetEntry.createMany({

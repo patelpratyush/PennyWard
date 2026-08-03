@@ -3,14 +3,16 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useParams, useRouter } from 'next/navigation'
 import {
-  Bell, Check, Database, Download, Gem, Keyboard, Laptop, Moon, Palette,
-  RotateCcw, Shield, Sun, Trash2, Upload, User,
+  Bell, Check, Copy, Database, Download, Gem, Keyboard, Laptop, Moon, Palette,
+  RotateCcw, Shield, Sun, Trash2, Upload, User, UserMinus, Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { exportState, useStore } from '@/stores/useStore'
 import { useCategories, useCreateCategory, useUpdateCategory } from '@/hooks/queries/useCategories'
 import { useCategorizationRules, useCreateCategorizationRule, useDeleteCategorizationRule } from '@/hooks/queries/useCategorizationRules'
 import { useMe } from '@/hooks/queries/useMe'
+import { useHousehold, useCreateHousehold, useCreateInvite, useRemoveMember } from '@/hooks/queries/useHousehold'
+import { UpgradeRequiredError } from '@/lib/fetchJSON'
 import { PageHeader } from '@/components/shared/Misc'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -558,16 +560,124 @@ function SubscriptionSection() {
   )
 }
 
+function HouseholdSection() {
+  const { data: household, isLoading } = useHousehold()
+  const createHousehold = useCreateHousehold()
+  const createInvite = useCreateInvite()
+  const removeMember = useRemoveMember()
+  const [name, setName] = useState('Our household')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [lastInviteLink, setLastInviteLink] = useState<string | null>(null)
+
+  if (isLoading) return <div className="h-40 animate-pulse rounded-lg bg-muted" />
+
+  if (!household) {
+    return (
+      <Card className="shadow-card">
+        <CardHeader><CardTitle className="text-base">Create a household</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">Share budgets with the people you live with.</p>
+          <div className="flex max-w-sm gap-2">
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Household name" />
+            <Button
+              disabled={!name.trim() || createHousehold.isPending}
+              onClick={() => createHousehold.mutate(name.trim(), {
+                onSuccess: () => toast.success('Household created.'),
+                onError: (err) => {
+                  if (err instanceof UpgradeRequiredError) { toast.error(err.message); return }
+                  toast.error('Could not create household.')
+                },
+              })}
+            >
+              Create
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="shadow-card">
+        <CardHeader><CardTitle className="text-base">{household.name}</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {household.members.map((m) => (
+            <div key={m.userId} className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">{m.name ?? m.email ?? m.userId}</p>
+                <p className="text-xs capitalize text-muted-foreground">{m.role}</p>
+              </div>
+              {household.role === 'owner' && m.role !== 'owner' && (
+                <Button
+                  variant="ghost" size="icon" className="h-8 w-8 text-destructive"
+                  aria-label="Remove member"
+                  onClick={() => removeMember.mutate(m.userId, {
+                    onSuccess: () => toast.success('Member removed.'),
+                    onError: () => toast.error('Could not remove member.'),
+                  })}
+                >
+                  <UserMinus className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {household.role === 'owner' && (
+        <Card className="shadow-card">
+          <CardHeader><CardTitle className="text-base">Invite a member</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex max-w-sm gap-2">
+              <Input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="them@example.com" />
+              <Button
+                disabled={!inviteEmail.trim() || createInvite.isPending}
+                onClick={() => createInvite.mutate(inviteEmail.trim(), {
+                  onSuccess: (invite) => {
+                    setLastInviteLink(`${window.location.origin}/app/invite/${invite.token}`)
+                    setInviteEmail('')
+                    toast.success('Invite created — share the link below.')
+                  },
+                  onError: () => toast.error('Could not create invite.'),
+                })}
+              >
+                Create invite
+              </Button>
+            </div>
+            {lastInviteLink && (
+              <div className="flex items-center gap-2 rounded-lg bg-muted p-2.5 text-xs">
+                <code className="flex-1 truncate">{lastInviteLink}</code>
+                <Button
+                  variant="ghost" size="icon" className="h-7 w-7"
+                  onClick={() => { navigator.clipboard.writeText(lastInviteLink); toast.success('Link copied.') }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Invites expire after 7 days. No email is sent yet — share the link directly.</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
 export default function Settings() {
   const params = useParams<{ section?: string }>()
   const section = params.section ?? 'profile'
   const pathname = usePathname()
+  const { data: me } = useMe()
+  const visibleSections = me?.plan === 'household'
+    ? [...sections, { id: 'household', label: 'Household', icon: Users }]
+    : sections
   return (
     <div>
       <PageHeader title="Settings" description="Profile, appearance, notifications, data, and plan." />
       <div className="grid gap-6 lg:grid-cols-4">
         <nav className="flex gap-1 overflow-x-auto lg:flex-col" aria-label="Settings sections">
-          {sections.map((s) => (
+          {visibleSections.map((s) => (
             <Link
               key={s.id}
               href={`/app/settings/${s.id}`}
@@ -600,6 +710,7 @@ export default function Settings() {
           {section === 'security' && <SecuritySection />}
           {section === 'data' && <DataSection />}
           {section === 'subscription' && <SubscriptionSection />}
+          {section === 'household' && <HouseholdSection />}
         </div>
       </div>
     </div>
