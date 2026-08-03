@@ -5,12 +5,14 @@ import {
   Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
 } from 'recharts'
 import { endOfMonth, format, parseISO, subMonths } from 'date-fns'
+import Link from 'next/link'
 import {
-  CalendarClock, CreditCard, Download, FileBarChart, Goal, Printer,
+  CalendarClock, CreditCard, Download, FileBarChart, Goal, Lock, Printer,
   Receipt, Scale, TrendingUp, Wallet,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useMe } from '@/hooks/queries/useMe'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { useAllTransactions } from '@/hooks/queries/useAllTransactions'
@@ -45,11 +47,20 @@ const reportCards = [
 
 type ReportId = (typeof reportCards)[number]['id']
 
+// Free tier's two "Basic" report types — client-only gate, see lib/plan.ts's
+// `advancedReports` doc comment for why this isn't (and can't meaningfully be)
+// a server-enforced boundary.
+const freeReportIds = new Set<ReportId>(['spending', 'cashflow'])
+const FREE_REPORT_MONTHS_BACK = 3
+
 export default function Reports() {
   // Goals and bills are out of migration scope for this plan and stay on the
   // legacy store. Accounts, transactions, categories, budgets, and debts are
   // migrated entities and are read from the real API via React Query.
   const { goals, bills } = useStore()
+  const { data: me } = useMe()
+  const advancedReports = me?.limits.advancedReports ?? true
+  const minFrom = format(subMonths(new Date(), FREE_REPORT_MONTHS_BACK), 'yyyy-MM-01')
   const [active, setActive] = useState<ReportId | null>(null)
   const [from, setFrom] = useState(format(subMonths(new Date(), 2), 'yyyy-MM-01'))
   const [to, setTo] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -189,19 +200,38 @@ export default function Reports() {
       <div>
         <PageHeader title="Reports" description="Eight focused reports — filter, visualize, and export." />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {reportCards.map((r) => (
-            <button key={r.id} onClick={() => setActive(r.id)} className="text-left">
-              <Card className="h-full shadow-card transition-shadow hover:shadow-lift">
-                <CardContent className="p-5">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <r.icon className="h-5 w-5" />
-                  </div>
-                  <h2 className="mt-3 font-semibold">{r.title}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{r.desc}</p>
-                </CardContent>
-              </Card>
-            </button>
-          ))}
+          {reportCards.map((r) => {
+            const locked = !advancedReports && !freeReportIds.has(r.id)
+            if (locked) {
+              return (
+                <Link key={r.id} href="/pricing" className="text-left">
+                  <Card className="h-full shadow-card opacity-60 transition-shadow hover:shadow-lift hover:opacity-80">
+                    <CardContent className="p-5">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                        <Lock className="h-5 w-5" />
+                      </div>
+                      <h2 className="mt-3 font-semibold">{r.title}</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">{r.desc}</p>
+                      <p className="mt-2 text-xs font-medium text-primary">Upgrade to unlock</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            }
+            return (
+              <button key={r.id} onClick={() => setActive(r.id)} className="text-left">
+                <Card className="h-full shadow-card transition-shadow hover:shadow-lift">
+                  <CardContent className="p-5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <r.icon className="h-5 w-5" />
+                    </div>
+                    <h2 className="mt-3 font-semibold">{r.title}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">{r.desc}</p>
+                  </CardContent>
+                </Card>
+              </button>
+            )
+          })}
         </div>
       </div>
     )
@@ -237,7 +267,11 @@ export default function Reports() {
         <CardContent className="flex flex-wrap items-end gap-3 p-4">
           <div className="space-y-1">
             <Label className="text-xs">From</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
+            <Input
+              type="date" value={from} min={advancedReports ? undefined : minFrom}
+              onChange={(e) => setFrom(advancedReports ? e.target.value : (e.target.value < minFrom ? minFrom : e.target.value))}
+              className="w-40"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">To</Label>
