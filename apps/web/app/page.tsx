@@ -74,7 +74,7 @@ const nav = [
   ['Features', '/features'],
   ['Pricing', '/pricing'],
   ['Security', '/security'],
-  ['Calculator', '/app/loans/car-calculator'],
+  ['Calculator', '/loan-calculator'],
 ]
 
 export default function Landing() {
@@ -591,7 +591,7 @@ export default function Landing() {
               </p>
             </div>
             {([
-              ['Product', [['Features', '/features'], ['Pricing', '/pricing'], ['Security', '/security'], ['Calculator', '/app/loans/car-calculator']]],
+              ['Product', [['Features', '/features'], ['Pricing', '/pricing'], ['Security', '/security'], ['Calculator', '/loan-calculator']]],
               ['Company', [['About', '/about'], ['Contact', '/contact'], ['Help center', '/help']]],
               ['Legal', [['Privacy', '/privacy'], ['Terms', '/terms']]],
             ] as [string, [string, string][]][]).map(([title, links]) => (
