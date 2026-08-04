@@ -12,7 +12,8 @@ import { useCategories, useCreateCategory, useUpdateCategory } from '@/hooks/que
 import { useCategorizationRules, useCreateCategorizationRule, useDeleteCategorizationRule } from '@/hooks/queries/useCategorizationRules'
 import { useMe } from '@/hooks/queries/useMe'
 import { useHousehold, useCreateHousehold, useCreateInvite, useRemoveMember } from '@/hooks/queries/useHousehold'
-import { UpgradeRequiredError } from '@/lib/fetchJSON'
+import { UpgradeRequiredError, fetchJSON } from '@/lib/fetchJSON'
+import { createClient } from '@/lib/supabase/client'
 import { PageHeader } from '@/components/shared/Misc'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -430,6 +431,23 @@ function DataSection() {
   const exportAllowed = me?.limits.dataExport ?? true
   const { resetToSampleData, clearAllData, importData } = useStore()
   const [confirm, setConfirm] = useState<'reset' | 'clear' | 'delete' | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const deleteAccount = async () => {
+    setDeleting(true)
+    try {
+      await fetchJSON('/api/account', { method: 'DELETE' })
+      clearAllData()
+      await createClient().auth.signOut()
+      toast.success('Account deleted.')
+      router.push('/')
+      router.refresh()
+    } catch {
+      toast.error('Could not delete your account. Please try again or contact support.')
+      setDeleting(false)
+      setConfirm(null)
+    }
+  }
 
   const exportBackup = () => {
     if (!exportAllowed) {
@@ -483,20 +501,21 @@ function DataSection() {
             <AlertDialogDescription>
               {confirm === 'reset' && 'This replaces everything with the original demo dataset. Export a backup first if needed.'}
               {confirm === 'clear' && 'This removes all accounts, transactions, budgets, debts, goals, and bills from this browser.'}
-              {confirm === 'delete' && 'This clears all local data and signs you out. In production this would schedule server-side deletion.'}
+              {confirm === 'delete' && 'This permanently deletes your account and every account, transaction, budget, and debt tied to it. This cannot be undone.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
               onClick={() => {
-                if (confirm === 'reset') { resetToSampleData(); toast.success('Sample data restored.') }
-                if (confirm === 'clear') { clearAllData(); toast.success('All data cleared.') }
-                if (confirm === 'delete') { clearAllData(); useStore.getState().signOut(); toast.success('Account deleted (demo).') }
+                if (confirm === 'reset') { resetToSampleData(); toast.success('Sample data restored.'); setConfirm(null) }
+                if (confirm === 'clear') { clearAllData(); toast.success('All data cleared.'); setConfirm(null) }
+                if (confirm === 'delete') deleteAccount()
               }}
             >
-              Confirm
+              {confirm === 'delete' && deleting ? 'Deleting…' : 'Confirm'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
