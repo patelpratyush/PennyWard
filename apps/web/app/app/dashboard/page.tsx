@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useStore } from '@/stores/useStore'
 import { useMe } from '@/hooks/queries/useMe'
+import { useNetWorthHistory } from '@/hooks/queries/useNetWorthHistory'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useTransactions } from '@/hooks/queries/useTransactions'
 import { useAllTransactions } from '@/hooks/queries/useAllTransactions'
@@ -111,6 +112,11 @@ export default function Dashboard() {
   const thisMonth = useMemo(() => totalsForMonth(transactions, monthKey), [transactions, monthKey])
   const lastMonth = useMemo(() => totalsForMonth(transactions, prevMonthKey), [transactions, prevMonthKey])
   const nw = useMemo(() => netWorth(accounts), [accounts])
+  const netWorthHistoryQ = useNetWorthHistory({ from: format(subMonths(new Date(), 6), 'yyyy-MM-dd') })
+  const netWorthSparkline = netWorthHistoryQ.data?.map((p) => p.netWorth) ?? []
+  const netWorthChangePct = netWorthSparkline.length >= 2 && netWorthSparkline[0] !== 0
+    ? round2(((netWorthSparkline[netWorthSparkline.length - 1] - netWorthSparkline[0]) / Math.abs(netWorthSparkline[0])) * 100)
+    : undefined
   const totalDebt = useMemo(() => round2(debts.reduce((s, d) => s + d.balance, 0)), [debts])
   const cashTotal = useMemo(() => round2(accounts.filter((a) => ['checking', 'savings', 'cash'].includes(a.type) && !a.archived).reduce((s, a) => s + a.balance, 0)), [accounts])
 
@@ -255,8 +261,8 @@ export default function Dashboard() {
       {/* Summary cards */}
       {visible('summary') && (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-          <MetricCard label="Net worth" value={nw.netWorth} changePct={2.4} comparison="vs last month" href="/app/accounts"
-            tooltip="Included assets minus liabilities." sparkline={<Sparkline data={[-14200, -13100, -12400, -11300, -9800, nw.netWorth]} />} />
+          <MetricCard label="Net worth" value={nw.netWorth} changePct={netWorthChangePct} comparison="past 6 months" href="/app/accounts"
+            tooltip="Included assets minus liabilities." sparkline={netWorthSparkline.length >= 2 ? <Sparkline data={netWorthSparkline} /> : undefined} />
           <MetricCard label="Total cash" value={cashTotal} changePct={3.1} comparison="vs last month" href="/app/accounts"
             tooltip="Checking, savings, and cash on hand." sparkline={<Sparkline data={[22100, 22800, 23450, 24100, 24800, cashTotal]} color="hsl(var(--chart-3))" />} />
           <MetricCard label="Income" value={thisMonth.income} changePct={pct(thisMonth.income, lastMonth.income)} comparison="vs last month" href="/app/transactions"

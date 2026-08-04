@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
 import { useMe } from '@/hooks/queries/useMe'
+import { useNetWorthHistory } from '@/hooks/queries/useNetWorthHistory'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { useAllTransactions } from '@/hooks/queries/useAllTransactions'
@@ -70,9 +71,11 @@ export default function Reports() {
   const accountsQ = useAccounts()
   const categoriesQ = useCategories()
   const debtsQ = useDebts()
+  const netWorthHistoryQ = useNetWorthHistory({ from, to })
   const accounts = accountsQ.data ?? []
   const categories = categoriesQ.data ?? []
   const debts = debtsQ.data ?? []
+  const netWorthHistory = netWorthHistoryQ.data ?? []
 
   // The API filters accountId/categoryId server-side but not transfer-split
   // category matches (transaction splits aren't modeled in the DB yet), so
@@ -124,7 +127,7 @@ export default function Reports() {
     if (active === 'networth') {
       const nw = netWorth(accounts)
       const rows = accounts.filter((a) => a.includeInNetWorth && !a.archived).map((a) => ({ name: a.name, type: a.type, balance: a.balance }))
-      return { kind: 'networth' as const, nw, rows }
+      return { kind: 'networth' as const, nw, rows, history: netWorthHistory }
     }
     if (active === 'budget') {
       if (!budget) return { kind: 'budget' as const, rows: [], month: '' }
@@ -168,7 +171,7 @@ export default function Reports() {
       return { kind: 'transactions' as const, rows: ranged }
     }
     return null
-  }, [active, ranged, summaries, accounts, budget, categories, budgetMonthTransactions, debts, goals, bills])
+  }, [active, ranged, summaries, accounts, budget, categories, budgetMonthTransactions, debts, goals, bills, netWorthHistory])
 
   const exportReport = () => {
     if (!report || !active) return
@@ -453,6 +456,24 @@ export default function Reports() {
               </Table>
             </CardContent>
           </Card>
+          {report.history.length >= 2 && (
+            <Card className="shadow-card lg:col-span-3">
+              <CardHeader><CardTitle className="text-base">Net worth over time</CardTitle></CardHeader>
+              <CardContent>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={report.history}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => format(parseISO(v), 'MMM d')} minTickGap={36} />
+                      <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} width={44} />
+                      <RTooltip formatter={(v: number) => formatCurrency(v, { decimals: 0 })} labelFormatter={(v) => format(parseISO(v as string), 'MMM d, yyyy')} />
+                      <Area type="monotone" dataKey="netWorth" name="Net worth" stroke="hsl(var(--chart-1))" fill="hsl(var(--chart-1)/0.15)" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

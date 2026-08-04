@@ -44,6 +44,7 @@ model User {
   categorizationRules CategorizationRule[]
   ownedHouseholds       Household[]       @relation("HouseholdOwner")
   householdMemberships HouseholdMember[]
+  balanceSnapshots      BalanceSnapshot[]
 
   createdAt DateTime @default(now())
 }
@@ -81,8 +82,28 @@ model FinancialAccount {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   debts        Debt[]
+  balanceSnapshots BalanceSnapshot[]
 
   @@index([userId])
+}
+
+/// One row per account per day, written by the nightly snapshot-balances cron
+/// (app/api/cron/snapshot-balances/route.ts). Powers the net-worth history
+/// chart — `includeInNetWorth`/`archived` are read live off FinancialAccount
+/// at query time, not duplicated here, so toggling either retroactively
+/// reshapes history the same way the live net-worth widget already behaves.
+model BalanceSnapshot {
+  id        String   @id @default(cuid())
+  userId    String
+  accountId String
+  balance   Decimal  @db.Decimal(14, 2)
+  asOf      DateTime @db.Date
+
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, asOf])
+  @@index([userId, asOf])
 }
 
 enum CategoryKind {
