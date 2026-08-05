@@ -45,6 +45,7 @@ model User {
   ownedHouseholds       Household[]       @relation("HouseholdOwner")
   householdMemberships HouseholdMember[]
   balanceSnapshots      BalanceSnapshot[]
+  goals                 Goal[]
 
   createdAt DateTime @default(now())
 }
@@ -83,6 +84,7 @@ model FinancialAccount {
   transactions Transaction[]
   debts        Debt[]
   balanceSnapshots BalanceSnapshot[]
+  goals        Goal[]
 
   @@index([userId])
 }
@@ -347,6 +349,64 @@ model LoanScenario {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+enum GoalType {
+  emergency
+  vacation
+  vehicle
+  home
+  education
+  wedding
+  purchase
+  custom
+}
+
+enum GoalPriority {
+  low
+  medium
+  high
+}
+
+enum GoalStatus {
+  on_track
+  behind
+  completed
+  paused
+}
+
+model Goal {
+  id                  String       @id @default(cuid())
+  userId              String
+  accountId           String?
+  name                String
+  type                GoalType
+  targetAmount        Decimal      @db.Decimal(14, 2)
+  currentAmount       Decimal      @db.Decimal(14, 2) @default(0)
+  targetDate          DateTime     @db.Date
+  monthlyContribution Decimal      @db.Decimal(12, 2) @default(0)
+  priority            GoalPriority @default(medium)
+  status              GoalStatus   @default(on_track)
+  notes               String?
+  createdAt           DateTime     @default(now())
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       FinancialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  contributions GoalContribution[]
+
+  @@index([userId])
+}
+
+model GoalContribution {
+  id     String   @id @default(cuid())
+  goalId String
+  date   DateTime @db.Date
+  amount Decimal  @db.Decimal(12, 2)
+  note   String?
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
 }
 
 enum MatchType {

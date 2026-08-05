@@ -7,6 +7,7 @@ import { addMonths, format, parseISO } from 'date-fns'
 import { ArrowLeft, Pause, Pencil, Play, Plus, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
+import { useGoals, useUpdateGoal, useAddContribution } from '@/hooks/queries/useGoals'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { GoalDialog, goalIcons } from '@/components/financial/GoalDialog'
 import { ChartCard, PageHeader, StatusBadge } from '@/components/shared/Misc'
@@ -25,7 +26,10 @@ import { cn } from '@/lib/utils'
 export default function GoalDetail() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const { goals, updateGoal, addContribution, pushNotification } = useStore()
+  const { pushNotification } = useStore()
+  const { data: goals = [] } = useGoals()
+  const updateGoal = useUpdateGoal()
+  const addContribution = useAddContribution()
   const { data: accounts = [] } = useAccounts()
   const goal = goals.find((g) => g.id === id)
   const [editOpen, setEditOpen] = useState(false)
@@ -68,19 +72,23 @@ export default function GoalDetail() {
     const amt = round2(Number(amount))
     if (!(amt > 0)) return
     const before = goalMath(goal).pct
-    addContribution(goal.id, amt, note || undefined)
-    const afterPct = ((goal.currentAmount + amt) / goal.targetAmount) * 100
-    const crossed = [25, 50, 75, 100].find((m) => before < m && afterPct >= m)
-    if (crossed === 100) {
-      updateGoal(goal.id, { status: 'completed' })
-      pushNotification({ type: 'goal', title: `${goal.name} completed!`, message: `You reached 100% of your ${goal.name} goal — ${formatCurrency(goal.targetAmount)} saved.` })
-      toast.success(`🎉 ${goal.name} fully funded! Amazing work.`, { duration: 6000 })
-    } else if (crossed) {
-      pushNotification({ type: 'goal', title: `${goal.name} reached ${crossed}%`, message: `Your ${goal.name} goal passed the ${crossed}% milestone.` })
-      toast.success(`Milestone: ${goal.name} reached ${crossed}%.`)
-    } else {
-      toast.success('Contribution added.')
-    }
+    addContribution.mutate({ goalId: goal.id, amount: amt, note: note || undefined }, {
+      onSuccess: () => {
+        const afterPct = ((goal.currentAmount + amt) / goal.targetAmount) * 100
+        const crossed = [25, 50, 75, 100].find((m) => before < m && afterPct >= m)
+        if (crossed === 100) {
+          updateGoal.mutate({ id: goal.id, patch: { status: 'completed' } })
+          pushNotification({ type: 'goal', title: `${goal.name} completed!`, message: `You reached 100% of your ${goal.name} goal — ${formatCurrency(goal.targetAmount)} saved.` })
+          toast.success(`🎉 ${goal.name} fully funded! Amazing work.`, { duration: 6000 })
+        } else if (crossed) {
+          pushNotification({ type: 'goal', title: `${goal.name} reached ${crossed}%`, message: `Your ${goal.name} goal passed the ${crossed}% milestone.` })
+          toast.success(`Milestone: ${goal.name} reached ${crossed}%.`)
+        } else {
+          toast.success('Contribution added.')
+        }
+      },
+      onError: () => toast.error('Could not add contribution.'),
+    })
     setContribOpen(false)
     setAmount('')
     setNote('')
@@ -96,10 +104,13 @@ export default function GoalDetail() {
         description={`${accounts.find((a) => a.id === goal.accountId)?.name ?? 'No linked account'} · ${goal.priority} priority`}
         actions={
           <>
-            <Button variant="outline" onClick={() => {
-              updateGoal(goal.id, { status: goal.status === 'paused' ? 'on_track' : 'paused' })
-              toast.success(goal.status === 'paused' ? 'Goal resumed.' : 'Goal paused.')
-            }}>
+            <Button variant="outline" onClick={() => updateGoal.mutate(
+              { id: goal.id, patch: { status: goal.status === 'paused' ? 'on_track' : 'paused' } },
+              {
+                onSuccess: () => toast.success(goal.status === 'paused' ? 'Goal resumed.' : 'Goal paused.'),
+                onError: () => toast.error('Could not update goal.'),
+              },
+            )}>
               {goal.status === 'paused' ? <Play className="mr-1.5 h-4 w-4" /> : <Pause className="mr-1.5 h-4 w-4" />}
               {goal.status === 'paused' ? 'Resume' : 'Pause'}
             </Button>

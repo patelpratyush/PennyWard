@@ -193,7 +193,7 @@ export const sampleGoals: Goal[] = [
   {
     id: 'goal_emergency', name: 'Emergency Fund', type: 'emergency', targetAmount: 15000, currentAmount: 8000,
     targetDate: '2027-12-31', monthlyContribution: 500, accountId: 'acc_savings', priority: 'high', status: 'on_track',
-    notes: 'Six months of essential expenses.', celebratedMilestones: [25, 50],
+    notes: 'Six months of essential expenses.',
     contributions: [
       { id: uid('gc'), date: format(subMonths(new Date(), 2), 'yyyy-MM-02'), amount: 500, note: 'Monthly transfer' },
       { id: uid('gc'), date: format(subMonths(new Date(), 1), 'yyyy-MM-02'), amount: 500, note: 'Monthly transfer' },
@@ -203,7 +203,6 @@ export const sampleGoals: Goal[] = [
   {
     id: 'goal_vacation', name: 'Japan Vacation', type: 'vacation', targetAmount: 4000, currentAmount: 1200,
     targetDate: '2027-06-30', monthlyContribution: 150, accountId: 'acc_savings', priority: 'medium', status: 'on_track',
-    celebratedMilestones: [25],
     contributions: [
       { id: uid('gc'), date: format(subMonths(new Date(), 1), 'yyyy-MM-10'), amount: 150 },
       { id: uid('gc'), date: format(new Date(), 'yyyy-MM-10'), amount: 150 },
@@ -212,7 +211,6 @@ export const sampleGoals: Goal[] = [
   {
     id: 'goal_vehicle', name: 'Future Vehicle Down Payment', type: 'vehicle', targetAmount: 10000, currentAmount: 3500,
     targetDate: '2028-01-31', monthlyContribution: 300, accountId: 'acc_savings', priority: 'medium', status: 'behind',
-    celebratedMilestones: [25],
     contributions: [
       { id: uid('gc'), date: format(subMonths(new Date(), 3), 'yyyy-MM-05'), amount: 300 },
       { id: uid('gc'), date: format(subMonths(new Date(), 1), 'yyyy-MM-05'), amount: 300 },

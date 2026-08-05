@@ -131,7 +131,6 @@ export interface Goal {
   status: 'on_track' | 'behind' | 'completed' | 'paused'
   notes?: string
   contributions: GoalContribution[]
-  celebratedMilestones: number[]
 }
 
 export type BillFrequency =

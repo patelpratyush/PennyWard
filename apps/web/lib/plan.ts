@@ -13,11 +13,11 @@ import type { Plan } from '@prisma/client'
  *   membership+invite model that doesn't exist. `household` currently gets
  *   the same limits as `pro`; it is not yet functionally different.
  *
- * `csvImport` and the numeric caps are enforced server-side, in the route
- * handlers that own those resources. `goals` and `maxWatchlists` have no
- * backend at all (still Zustand/localStorage) — gating them is client-side
- * UI only, not a security boundary, since there's no server resource to
- * guard.
+ * `csvImport`, `goals`, and the numeric caps (except `maxWatchlists`) are
+ * enforced server-side, in the route handlers that own those resources.
+ * `maxWatchlists` has no backend at all (still Zustand/localStorage) —
+ * gating it is client-side UI only, not a security boundary, since there's
+ * no server resource to guard.
  */
 export const PLAN_LIMITS: Record<Plan, {
   maxDebtPayoffScenarios: number
@@ -28,7 +28,7 @@ export const PLAN_LIMITS: Record<Plan, {
   maxLoanScenarios: number
   csvImport: boolean
   dataExport: boolean
-  /** The pricing page lists this as an all-or-nothing feature, not a count. */
+  /** All-or-nothing (not a count) — enforced server-side in POST /api/goals. */
   goals: boolean
   /**
    * Reports page: on Free, only Spending + Cash Flow render (the other 6
@@ -40,7 +40,7 @@ export const PLAN_LIMITS: Record<Plan, {
    * Dashboard "Financial insights" card (rule-based, derived from data the
    * user already sees elsewhere). Was rendered unconditionally to everyone
    * despite the pricing page claiming it's Pro-only. Client-only gate, same
-   * footing as `goals`/`maxWatchlists`.
+   * footing as `maxWatchlists`.
    */
   insights: boolean
 }> = {

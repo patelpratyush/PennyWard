@@ -6,12 +6,12 @@ import { persist } from 'zustand/middleware'
 import { uid } from '@/lib/format'
 import {
   generateSampleBudgets, generateSampleTransactions, sampleAccounts, sampleBills,
-  sampleCategories, sampleDebts, sampleGoals, sampleNotifications,
+  sampleCategories, sampleDebts, sampleNotifications,
   sampleUser, sampleWatchlists,
 } from '@/data/sampleData'
 import type {
   Account, AppNotification, AppSettings, Bill, Budget, Category, DashboardWidget,
-  Debt, Goal, OnboardingState, PayoffPlan, Transaction, UserProfile, Watchlist,
+  Debt, OnboardingState, PayoffPlan, Transaction, UserProfile, Watchlist,
 } from '@/types'
 
 export interface PennywardState {
@@ -25,7 +25,6 @@ export interface PennywardState {
   budgets: Budget[]
   debts: Debt[]
   payoffPlans: PayoffPlan[]
-  goals: Goal[]
   bills: Bill[]
   watchlists: Watchlist[]
   notifications: AppNotification[]
@@ -69,12 +68,6 @@ export interface PennywardState {
   deleteDebt: (id: string) => void
   addPayoffPlan: (p: Omit<PayoffPlan, 'id' | 'createdAt'>) => void
   deletePayoffPlan: (id: string) => void
-
-  // goals
-  addGoal: (g: Omit<Goal, 'id' | 'contributions' | 'celebratedMilestones'>) => void
-  updateGoal: (id: string, patch: Partial<Goal>) => void
-  deleteGoal: (id: string) => void
-  addContribution: (goalId: string, amount: number, note?: string) => void
 
   // bills
   addBill: (b: Omit<Bill, 'id' | 'paidDates' | 'skippedDates'>) => void
@@ -142,7 +135,6 @@ function sampleState() {
     budgets: generateSampleBudgets(),
     debts: sampleDebts,
     payoffPlans: [] as PayoffPlan[],
-    goals: sampleGoals,
     bills: sampleBills,
     watchlists: sampleWatchlists,
     notifications: sampleNotifications,
@@ -223,20 +215,6 @@ export const useStore = create<PennywardState>()(
       addPayoffPlan: (p) => set({ payoffPlans: [...get().payoffPlans, { ...p, id: uid('plan'), createdAt: new Date().toISOString() }] }),
       deletePayoffPlan: (id) => set({ payoffPlans: get().payoffPlans.filter((p) => p.id !== id) }),
 
-      addGoal: (g) => set({ goals: [...get().goals, { ...g, id: uid('goal'), contributions: [], celebratedMilestones: [] }] }),
-      updateGoal: (id, patch) => set({ goals: get().goals.map((g) => (g.id === id ? { ...g, ...patch } : g)) }),
-      deleteGoal: (id) => set({ goals: get().goals.filter((g) => g.id !== id) }),
-      addContribution: (goalId, amount, note) => set({
-        goals: get().goals.map((g) =>
-          g.id === goalId
-            ? {
-                ...g,
-                currentAmount: Math.round((g.currentAmount + amount) * 100) / 100,
-                contributions: [...g.contributions, { id: uid('gc'), date: new Date().toISOString().slice(0, 10), amount, note }],
-              }
-            : g),
-      }),
-
       addBill: (b) => set({ bills: [...get().bills, { ...b, id: uid('bill'), paidDates: [], skippedDates: [] }] }),
       updateBill: (id, patch) => set({ bills: get().bills.map((b) => (b.id === id ? { ...b, ...patch } : b)) }),
       deleteBill: (id) => set({ bills: get().bills.filter((b) => b.id !== id) }),
@@ -274,7 +252,7 @@ export const useStore = create<PennywardState>()(
       clearAllData: () => set({
         ...sampleState(),
         accounts: [], transactions: [], budgets: [], debts: [], payoffPlans: [],
-        goals: [], bills: [], notifications: [], categories: sampleCategories,
+        bills: [], notifications: [], categories: sampleCategories,
       }),
       importData: (json) => {
         try {

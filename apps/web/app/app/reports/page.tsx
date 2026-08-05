@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner'
 import { useStore } from '@/stores/useStore'
 import { useMe } from '@/hooks/queries/useMe'
+import { useGoals } from '@/hooks/queries/useGoals'
 import { useNetWorthHistory } from '@/hooks/queries/useNetWorthHistory'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useCategories } from '@/hooks/queries/useCategories'
@@ -55,10 +56,11 @@ const freeReportIds = new Set<ReportId>(['spending', 'cashflow'])
 const FREE_REPORT_MONTHS_BACK = 3
 
 export default function Reports() {
-  // Goals and bills are out of migration scope for this plan and stay on the
-  // legacy store. Accounts, transactions, categories, budgets, and debts are
+  // Bills are out of migration scope for this plan and stay on the legacy
+  // store. Accounts, transactions, categories, budgets, debts, and goals are
   // migrated entities and are read from the real API via React Query.
-  const { goals, bills } = useStore()
+  const { bills } = useStore()
+  const { data: goals = [] } = useGoals()
   const { data: me } = useMe()
   const advancedReports = me?.limits.advancedReports ?? true
   const minFrom = format(subMonths(new Date(), FREE_REPORT_MONTHS_BACK), 'yyyy-MM-01')

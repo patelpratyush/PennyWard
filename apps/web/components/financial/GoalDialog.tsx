@@ -4,7 +4,7 @@ import {
   Car, Gem, GraduationCap, Home, Palmtree, PiggyBank, Plane, ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStore } from '@/stores/useStore'
+import { useCreateGoal, useUpdateGoal } from '@/hooks/queries/useGoals'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -25,7 +25,8 @@ export function GoalDialog({ open, onOpenChange, editing }: {
   onOpenChange: (v: boolean) => void
   editing?: Goal | null
 }) {
-  const { addGoal, updateGoal } = useStore()
+  const createGoal = useCreateGoal()
+  const updateGoal = useUpdateGoal()
   const { data: accounts = [] } = useAccounts()
   const [form, setForm] = useState({
     name: '', type: 'emergency' as GoalType, targetAmount: '', currentAmount: '',
@@ -54,19 +55,21 @@ export function GoalDialog({ open, onOpenChange, editing }: {
       currentAmount: round2(Number(form.currentAmount) || 0),
       targetDate: form.targetDate,
       monthlyContribution: round2(Number(form.monthlyContribution) || 0),
-      accountId: form.accountId || undefined,
+      accountId: form.accountId || null,
       priority: form.priority,
       status: editing?.status ?? 'on_track' as Goal['status'],
       notes: form.notes || undefined,
     }
-    if (editing) {
-      updateGoal(editing.id, payload)
-      toast.success('Goal updated.')
-    } else {
-      addGoal(payload)
-      toast.success('Goal created.')
+    const onSuccess = () => {
+      toast.success(editing ? 'Goal updated.' : 'Goal created.')
+      onOpenChange(false)
     }
-    onOpenChange(false)
+    const onError = () => toast.error(editing ? 'Could not update goal.' : 'Could not create goal.')
+    if (editing) {
+      updateGoal.mutate({ id: editing.id, patch: payload }, { onSuccess, onError })
+    } else {
+      createGoal.mutate(payload, { onSuccess, onError })
+    }
   }
 
   return (

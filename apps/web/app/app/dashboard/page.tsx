@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useStore } from '@/stores/useStore'
 import { useMe } from '@/hooks/queries/useMe'
+import { useGoals } from '@/hooks/queries/useGoals'
 import { useNetWorthHistory } from '@/hooks/queries/useNetWorthHistory'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useTransactions } from '@/hooks/queries/useTransactions'
@@ -72,9 +73,10 @@ const widgetLabels: Record<string, string> = {
 
 export default function Dashboard() {
   // Entities covered by this migration plan (accounts, transactions, budgets, debts,
-  // categories) are read from the real API via React Query. Goals, bills, and
+  // categories, goals) are read from the real API via React Query. Bills and
   // watchlists/stocks are out of scope for this plan and stay on the legacy store.
-  const { profile, goals, bills, watchlists, dashboardWidgets, setDashboardWidgets } = useStore()
+  const { profile, bills, watchlists, dashboardWidgets, setDashboardWidgets } = useStore()
+  const { data: goals = [] } = useGoals()
   const { data: me } = useMe()
   const insightsAllowed = me?.limits.insights ?? true
   const [range, setRange] = useState('this-month')

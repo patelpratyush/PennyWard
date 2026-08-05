@@ -500,7 +500,7 @@ function DataSection() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirm === 'reset' && 'This replaces everything with the original demo dataset. Export a backup first if needed.'}
-              {confirm === 'clear' && 'This removes all accounts, transactions, budgets, debts, goals, and bills from this browser.'}
+              {confirm === 'clear' && 'This removes all accounts, transactions, budgets, debts, and bills from this browser.'}
               {confirm === 'delete' && 'This permanently deletes your account and every account, transaction, budget, and debt tied to it. This cannot be undone.'}
             </AlertDialogDescription>
           </AlertDialogHeader>

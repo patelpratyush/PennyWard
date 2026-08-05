@@ -8,7 +8,7 @@ import {
   Pencil, PiggyBank, Play, Plus, Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStore } from '@/stores/useStore'
+import { useGoals, useUpdateGoal, useDeleteGoal } from '@/hooks/queries/useGoals'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useMe } from '@/hooks/queries/useMe'
 import { PageHeader, StatusBadge } from '@/components/shared/Misc'
@@ -24,15 +24,17 @@ import { formatCurrency, formatDate } from '@/lib/format'
 import type { Goal } from '@/types'
 
 function GoalsInner() {
-  const { goals, updateGoal, deleteGoal } = useStore()
+  const { data: goals = [] } = useGoals()
+  const updateGoal = useUpdateGoal()
+  const deleteGoal = useDeleteGoal()
   const { data: accounts = [] } = useAccounts()
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const router = useRouter()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Goal | null>(null)
-  // Goals have no backend (still local to this browser via useStore) — this
-  // is a UI-only gate matching the pricing page, not a security boundary.
+  // Client-side gate for UX (hides the button, redirects) — POST /api/goals
+  // enforces the real limit server-side regardless of what this shows.
   const { data: me } = useMe()
   const goalsAllowed = me?.limits.goals ?? true
 
@@ -104,14 +106,20 @@ function GoalsInner() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild><Link href={`/app/goals/${g.id}`}>Open details</Link></DropdownMenuItem>
                           <DropdownMenuItem onClick={() => { setEditing(g); setDialogOpen(true) }}><Pencil className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
-                            updateGoal(g.id, { status: g.status === 'paused' ? 'on_track' : 'paused' })
-                            toast.success(g.status === 'paused' ? 'Goal resumed.' : 'Goal paused.')
-                          }}>
+                          <DropdownMenuItem onClick={() => updateGoal.mutate(
+                            { id: g.id, patch: { status: g.status === 'paused' ? 'on_track' : 'paused' } },
+                            {
+                              onSuccess: () => toast.success(g.status === 'paused' ? 'Goal resumed.' : 'Goal paused.'),
+                              onError: () => toast.error('Could not update goal.'),
+                            },
+                          )}>
                             {g.status === 'paused' ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
                             {g.status === 'paused' ? 'Resume' : 'Pause'}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => { deleteGoal(g.id); toast.success('Goal deleted.') }}>
+                          <DropdownMenuItem className="text-destructive" onClick={() => deleteGoal.mutate(g.id, {
+                            onSuccess: () => toast.success('Goal deleted.'),
+                            onError: () => toast.error('Could not delete goal.'),
+                          })}>
                             <Trash2 className="mr-2 h-4 w-4" />Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
