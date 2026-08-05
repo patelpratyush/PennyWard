@@ -107,6 +107,7 @@ export const defaultWidgets: DashboardWidget[] = [
   { id: 'budget', visible: true },
   { id: 'debt', visible: true },
   { id: 'bills', visible: true },
+  { id: 'subscriptions', visible: true },
   { id: 'goals', visible: true },
   { id: 'transactions', visible: true },
   { id: 'insights', visible: true },

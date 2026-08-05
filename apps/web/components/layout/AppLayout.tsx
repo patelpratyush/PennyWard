@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Bell, Briefcase, Calculator, Car, ChevronRight, CreditCard, FileBarChart, Goal,
   Home, Landmark, LineChart, ListOrdered, LogOut, Menu, Moon, Plus,
-  Receipt, Search, Settings, Sun, SunMoon, Upload, User, Wallet, X,
+  Receipt, Repeat, Search, Settings, Sun, SunMoon, Upload, User, Wallet, X,
 } from 'lucide-react'
 import { useStore } from '@/stores/useStore'
 import { useAccounts } from '@/hooks/queries/useAccounts'
@@ -40,6 +40,7 @@ const navItems = [
   { to: '/app/debt', label: 'Debt & Loans', icon: CreditCard },
   { to: '/app/goals', label: 'Goals', icon: Goal },
   { to: '/app/bills', label: 'Bills & Calendar', icon: ListOrdered },
+  { to: '/app/subscriptions', label: 'Subscriptions', icon: Repeat },
   { to: '/app/portfolio', label: 'Portfolio', icon: Briefcase },
   { to: '/app/stocks', label: 'Stocks', icon: LineChart },
   { to: '/app/reports', label: 'Reports', icon: FileBarChart },

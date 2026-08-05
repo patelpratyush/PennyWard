@@ -7,11 +7,12 @@ import {
 } from 'recharts'
 import { addDays, format, isBefore, parseISO, subMonths } from 'date-fns'
 import {
-  ArrowRight, CalendarClock, Eye, EyeOff, Lightbulb, RotateCcw, Settings2,
+  ArrowRight, CalendarClock, Eye, EyeOff, Lightbulb, Repeat, RotateCcw, Settings2,
 } from 'lucide-react'
 import { useStore } from '@/stores/useStore'
 import { useMe } from '@/hooks/queries/useMe'
 import { useGoals } from '@/hooks/queries/useGoals'
+import { useRecurring } from '@/hooks/queries/useRecurring'
 import { useNetWorthHistory } from '@/hooks/queries/useNetWorthHistory'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { useTransactions } from '@/hooks/queries/useTransactions'
@@ -67,7 +68,7 @@ export function Sparkline({ data, color = 'hsl(var(--chart-1))' }: { data: numbe
 
 const widgetLabels: Record<string, string> = {
   summary: 'Summary cards', cashflow: 'Cash-flow chart', categories: 'Spending by category',
-  budget: 'Budget progress', debt: 'Debt payoff', bills: 'Upcoming bills',
+  budget: 'Budget progress', debt: 'Debt payoff', bills: 'Upcoming bills', subscriptions: 'Upcoming subscriptions',
   goals: 'Savings goals', transactions: 'Recent transactions', insights: 'Financial insights', stocks: 'Stock snapshot',
 }
 
@@ -77,6 +78,7 @@ export default function Dashboard() {
   // watchlists/stocks are out of scope for this plan and stay on the legacy store.
   const { profile, bills, watchlists, dashboardWidgets, setDashboardWidgets } = useStore()
   const { data: goals = [] } = useGoals()
+  const { data: recurringSeries = [] } = useRecurring()
   const { data: me } = useMe()
   const insightsAllowed = me?.limits.insights ?? true
   const [range, setRange] = useState('this-month')
@@ -153,6 +155,11 @@ export default function Dashboard() {
     })
     .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate))
     .slice(0, 6), [bills, now])
+
+  const upcomingSubscriptions = useMemo(() => recurringSeries
+    .filter((s) => s.type === 'expense' && isBefore(parseISO(s.nextExpected), addDays(now, 14)))
+    .sort((a, b) => a.nextExpected.localeCompare(b.nextExpected))
+    .slice(0, 6), [recurringSeries, now])
 
   const insights = useMemo(() => {
     const list: string[] = []
@@ -472,6 +479,30 @@ export default function Dashboard() {
                     </div>
                     <Money value={b.amount} className="text-sm font-semibold" />
                     <StatusBadge status={b.status === 'upcoming' ? 'no_activity' : b.status} label={b.status === 'upcoming' ? 'Scheduled' : undefined} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ChartCard>
+        )}
+
+        {visible('subscriptions') && (
+          <ChartCard title="Upcoming subscriptions" description="Next 14 days, detected from your transactions"
+            actions={<Button asChild variant="ghost" size="sm" className="h-8 text-xs"><Link href="/app/subscriptions">All subscriptions<ArrowRight className="ml-1 h-3 w-3" /></Link></Button>}>
+            {upcomingSubscriptions.length === 0 ? (
+              <EmptyState title="Nothing due soon" description="Recurring charges due in the next 14 days show up here." />
+            ) : (
+              <ul className="divide-y">
+                {upcomingSubscriptions.map((s) => (
+                  <li key={s.payeeNorm} className="flex items-center gap-3 py-2.5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                      <Repeat className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{s.displayName}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(s.nextExpected, 'EEE, MMM d')}</p>
+                    </div>
+                    <Money value={s.avgAmount} className="text-sm font-semibold" />
                   </li>
                 ))}
               </ul>

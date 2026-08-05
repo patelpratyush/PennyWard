@@ -47,6 +47,7 @@ model User {
   balanceSnapshots      BalanceSnapshot[]
   goals                 Goal[]
   holdings              Holding[]
+  recurringSeries       RecurringSeries[]
 
   createdAt DateTime @default(now())
 }
@@ -428,6 +429,33 @@ model Holding {
   user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   account FinancialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
+  @@index([userId])
+}
+
+enum RecurringCadence {
+  weekly
+  biweekly
+  monthly
+  annual
+}
+
+/// Detection itself is stateless — GET /api/recurring re-runs
+/// lib/finance/recurring.ts fresh over the caller's transactions every time,
+/// same philosophy as reports. This table only persists what the user
+/// explicitly decided (confirmed a series, or dismissed one so it stops
+/// resurfacing), keyed by the same normalized payee the detector groups by.
+model RecurringSeries {
+  id           String            @id @default(cuid())
+  userId       String
+  payeeNorm    String
+  cadence      RecurringCadence
+  confirmed    Boolean           @default(false)
+  dismissedAt  DateTime?
+  createdAt    DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, payeeNorm])
   @@index([userId])
 }
 
