@@ -16,7 +16,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { getQuote, searchStocks } from '@/services/stocks'
+import { searchStocks } from '@/services/stocks'
+import { useQuotes } from '@/hooks/queries/useQuotes'
 import { formatCurrency, round2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -38,16 +39,18 @@ export default function Portfolio() {
   const [accountId, setAccountId] = useState('')
 
   const results = useMemo(() => searchStocks(search), [search])
+  const holdingTickers = useMemo(() => holdings.map((h) => h.ticker), [holdings])
+  const quotesQ = useQuotes(holdingTickers)
 
   const rows = useMemo(() => holdings.map((h) => {
-    const quote = getQuote(h.ticker)
+    const quote = quotesQ.resolve(h.ticker)
     const marketValue = quote ? round2(quote.price * h.shares) : null
     const costTotal = h.costBasis != null ? round2(h.costBasis * h.shares) : null
     const gain = marketValue != null && costTotal != null ? round2(marketValue - costTotal) : null
     const gainPct = gain != null && costTotal ? round2((gain / costTotal) * 100) : null
     const dayChange = quote ? round2(quote.change * h.shares) : null
     return { holding: h, quote, marketValue, costTotal, gain, gainPct, dayChange }
-  }), [holdings])
+  }), [holdings, quotesQ.data])
 
   const totals = useMemo(() => {
     const totalValue = round2(rows.reduce((s, r) => s + (r.marketValue ?? 0), 0))

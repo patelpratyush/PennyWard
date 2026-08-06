@@ -35,7 +35,7 @@ import { budgetStatus, budgetTotals, goalMath, netWorth, spendingByCategory } fr
 import { categoryTotals, monthlySummaries, totalsForMonth } from '@/lib/finance/derive'
 import { compareStrategies } from '@/lib/finance/debt'
 import { formatCurrency, formatDate, formatMonth, round2 } from '@/lib/format'
-import { getQuote } from '@/services/stocks'
+import { useQuotes } from '@/hooks/queries/useQuotes'
 import { cn } from '@/lib/utils'
 
 const CHART_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-6))', 'hsl(var(--chart-7))', 'hsl(var(--chart-8))']
@@ -179,11 +179,12 @@ export default function Dashboard() {
     return list.slice(0, 4)
   }, [catTotals, transactions, prevMonthKey, bt, debtPlan, goals])
 
-  const stockSnapshot = useMemo(() => {
-    const wl = watchlists[0]
-    if (!wl) return []
-    return wl.items.slice(0, 4).map((i) => getQuote(i.ticker)).filter(Boolean)
-  }, [watchlists])
+  const stockSnapshotTickers = useMemo(() => (watchlists[0]?.items ?? []).slice(0, 4).map((i) => i.ticker), [watchlists])
+  const quotesQ = useQuotes(stockSnapshotTickers)
+  const stockSnapshot = useMemo(
+    () => stockSnapshotTickers.map((t) => quotesQ.resolve(t)).filter(Boolean),
+    [stockSnapshotTickers, quotesQ.data],
+  )
 
   const visible = (id: string) => dashboardWidgets.find((w) => w.id === id)?.visible !== false
   const pct = (nowV: number, prevV: number) => (prevV !== 0 ? ((nowV - prevV) / Math.abs(prevV)) * 100 : 0)

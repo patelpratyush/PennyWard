@@ -48,6 +48,7 @@ model User {
   goals                 Goal[]
   holdings              Holding[]
   recurringSeries       RecurringSeries[]
+  importMappings        ImportMapping[]
 
   createdAt DateTime @default(now())
 }
@@ -482,5 +483,20 @@ model CategorizationRule {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id])
 
+  @@index([userId])
+}
+
+/// R2.2: saves a CSV column mapping per institution so re-imports from the
+/// same bank are one click instead of re-mapping columns every time.
+model ImportMapping {
+  id          String   @id @default(cuid())
+  userId      String
+  institution String
+  mapping     Json
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, institution])
   @@index([userId])
 }

@@ -14,7 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { getHistory, getQuote } from '@/services/stocks'
+import { getHistory } from '@/services/stocks'
+import { useQuotes } from '@/hooks/queries/useQuotes'
 import { formatCurrency, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -27,7 +28,8 @@ export default function StockDetail() {
   const [range, setRange] = useState<(typeof ranges)[number]>('6M')
   const [targetList, setTargetList] = useState(watchlists[0]?.id ?? '')
 
-  const quote = useMemo(() => (ticker ? getQuote(ticker) : null), [ticker])
+  const quotesQ = useQuotes(ticker ? [ticker] : [])
+  const quote = useMemo(() => (ticker ? quotesQ.resolve(ticker) : null), [ticker, quotesQ.data])
   const history = useMemo(() => (ticker ? getHistory(ticker, range) : []), [ticker, range])
 
   const membership = useMemo(() => {

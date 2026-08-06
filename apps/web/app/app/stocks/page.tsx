@@ -15,7 +15,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { getQuote, searchStocks } from '@/services/stocks'
+import { searchStocks } from '@/services/stocks'
+import { useQuotes } from '@/hooks/queries/useQuotes'
 import { cn } from '@/lib/utils'
 
 export default function Stocks() {
@@ -39,9 +40,11 @@ export default function Stocks() {
   }
 
   const active = watchlists.find((w) => w.id === activeId) ?? watchlists[0]
+  const activeTickers = useMemo(() => (active?.items ?? []).map((i) => i.ticker), [active])
+  const quotesQ = useQuotes(activeTickers)
   const quotes = useMemo(
-    () => (active?.items ?? []).map((i) => ({ item: i, quote: getQuote(i.ticker) })).filter((x) => x.quote),
-    [active])
+    () => (active?.items ?? []).map((i) => ({ item: i, quote: quotesQ.resolve(i.ticker) })).filter((x) => x.quote),
+    [active, quotesQ.data])
   const results = useMemo(() => searchStocks(search), [search])
 
   return (

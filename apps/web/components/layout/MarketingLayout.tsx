@@ -164,6 +164,9 @@ export function MarketingFooter() {
             A tracking &amp; planning tool — not a financial advisor
           </p>
         </div>
+        <p className="mt-4 text-xs text-[var(--ink-3)]">
+          Your data is yours; we never sell it.
+        </p>
       </div>
     </footer>
   )

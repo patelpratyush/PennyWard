@@ -20,6 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { downloadCSV, formatCurrency, round2 } from '@/lib/format'
+import { fetchJSON } from '@/lib/fetchJSON'
 import { cn } from '@/lib/utils'
 
 const steps = ['Upload', 'Account', 'Map columns', 'Preview', 'Duplicates', 'Confirm', 'Done']
@@ -109,6 +110,8 @@ export default function TransactionsImport() {
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const [savedMapping, setSavedMapping] = useState(false)
+
   const handleFile = (file: File) => {
     setFileName(file.name)
     Papa.parse<Record<string, string>>(file, {
@@ -133,11 +136,38 @@ export default function TransactionsImport() {
           notes: guess(['note']),
           externalId: guess(['id', 'reference']),
         })
+        setSavedMapping(false)
         toast.success(`Parsed ${res.data.length} rows from ${file.name}.`)
         setStep(2)
       },
       error: () => toast.error('We could not read that file. Make sure it is a valid CSV.'),
     })
+  }
+
+  // R2.2: once the account (and its institution) is picked, check for a
+  // saved mapping from a prior import and prefill it — only for columns
+  // that actually exist in this file's headers, so a stale saved mapping
+  // never silently points at a missing column.
+  const applySavedMapping = async (institution: string) => {
+    if (!institution) return
+    try {
+      const saved = await fetchJSON<{ institution: string; mapping: Record<string, string> } | null>(
+        `/api/import-mappings?institution=${encodeURIComponent(institution)}`,
+      )
+      if (!saved) return
+      setMapping((prev) => {
+        const next = { ...prev }
+        for (const key of Object.keys(next) as MapKey[]) {
+          const savedValue = saved.mapping[key]
+          if (savedValue && headers.includes(savedValue)) next[key] = savedValue
+        }
+        return next
+      })
+      setSavedMapping(true)
+      toast.success(`Applied your saved column mapping for ${institution}.`)
+    } catch {
+      // No saved mapping (or fetch failed) — keep the auto-guessed mapping.
+    }
   }
 
   const useSample = () => {
@@ -228,6 +258,14 @@ export default function TransactionsImport() {
       const body = (await res.json()) as { imported: number; duplicates: number; review: string[] }
       setResult({ imported: body.imported, duplicates: body.duplicates, review: body.review, clientErrors: invalidRows.length })
       pushNotification({ type: 'import', title: 'CSV import completed', message: `${body.imported} transactions were imported from ${fileName}.` })
+      const institution = accounts.find((a) => a.id === accountId)?.institution
+      if (institution) {
+        fetchJSON('/api/import-mappings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ institution, mapping }),
+        }).catch(() => {}) // best-effort — a failed save shouldn't block a completed import
+      }
       setStep(7)
     } catch {
       toast.error('Import failed. Please check your connection and try again.')
@@ -341,7 +379,7 @@ export default function TransactionsImport() {
                 <p className="mt-1 text-sm text-muted-foreground">File: {fileName} · {rawRows.length} rows parsed</p>
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   {accounts.filter((a) => !a.archived).map((a) => (
-                    <button key={a.id} onClick={() => setAccountId(a.id)}
+                    <button key={a.id} onClick={() => { setAccountId(a.id); applySavedMapping(a.institution) }}
                       className={cn('flex min-h-[52px] items-center justify-between rounded-xl border p-3 text-left transition-all hover:shadow-card', accountId === a.id && 'border-primary bg-accent ring-1 ring-primary')}
                       aria-pressed={accountId === a.id}>
                       <span>
@@ -364,6 +402,11 @@ export default function TransactionsImport() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   Match Pennyward fields to columns in your file. A date column plus either a signed amount or debit+credit columns are required.
                 </p>
+                {savedMapping && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-success">
+                    <CheckCircle2 className="h-3.5 w-3.5" />Applied your saved mapping for this institution — this import will be one click on subsequent files.
+                  </p>
+                )}
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {mapFields.map((f) => (
                     <div key={f.key} className="space-y-1">

@@ -1,31 +1,49 @@
 'use client'
 import type { ReactNode } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 import { Logo } from '@/components/shared/Logo'
+import { createClient } from '@/lib/supabase/client'
 import '@/app/ledger.css'
 
+// R1.1: real Google OAuth via Supabase Auth. Requires the Google provider to
+// be enabled in the Supabase dashboard (Authentication → Providers) with a
+// Google Cloud OAuth client id/secret — until that's configured, Supabase
+// returns an error which this surfaces as a toast rather than a dead click.
 export function GoogleButton({ label }: { label: string }) {
+  const [loading, setLoading] = useState(false)
+
+  const signInWithGoogle = async () => {
+    setLoading(true)
+    const { error } = await createClient().auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    })
+    if (error) {
+      toast.error('Google sign-in is not available yet.')
+      setLoading(false)
+    }
+    // On success the browser is redirected to Google, so no further local
+    // state change is needed here.
+  }
+
   return (
     <button
       type="button"
-      disabled
-      aria-disabled="true"
-      onClick={() => {}}
-      aria-label={`${label} with Google (coming soon)`}
-      title="Coming soon"
-      className="flex h-12 w-full cursor-not-allowed items-center justify-center gap-2.5 border border-dashed border-[var(--ink-3)] bg-[var(--paper)] px-4 font-mono text-[0.75rem] font-medium uppercase tracking-[0.12em] text-[var(--ink-3)] opacity-75 transition-opacity"
+      disabled={loading}
+      aria-label={`${label} with Google`}
+      onClick={signInWithGoogle}
+      className="flex h-12 w-full items-center justify-center gap-2.5 border border-[var(--ink)] bg-[var(--paper)] px-4 font-mono text-[0.75rem] font-medium uppercase tracking-[0.12em] text-[var(--ink)] transition-opacity hover:opacity-80 disabled:cursor-wait disabled:opacity-60"
     >
-      <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 grayscale" aria-hidden="true">
+      <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" aria-hidden="true">
         <path fill="#4285F4" d="M23.5 12.3c0-.9-.1-1.5-.3-2.2H12v4.1h6.5c-.1 1.1-.8 2.7-2.4 3.8l3.7 2.9c2.3-2.1 3.7-5.2 3.7-8.6z"/>
         <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.7-2.9c-1 .7-2.4 1.2-4.2 1.2-3.2 0-5.9-2.1-6.8-5.1L1.3 17.2C3.3 21.3 7.3 24 12 24z"/>
         <path fill="#FBBC05" d="M5.2 14.3c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.3 6.8C.5 8.4 0 10.1 0 12s.5 3.6 1.3 5.2l3.9-2.9z"/>
         <path fill="#EA4335" d="M12 4.7c1.8 0 3 .8 3.7 1.4l3.3-3.2C17.9 1.1 15.2 0 12 0 7.3 0 3.3 2.7 1.3 6.8l3.9 2.9c.9-2.9 3.6-5 6.8-5z"/>
       </svg>
-      <span>{label} with Google</span>
-      <span className="ml-0.5 border border-[var(--rule-strong)] px-1.5 py-0.5 text-[0.5625rem] tracking-[0.14em] text-[var(--ink-3)]">
-        Soon
-      </span>
+      <span>{loading ? 'Redirecting…' : `${label} with Google`}</span>
     </button>
   )
 }
