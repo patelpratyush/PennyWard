@@ -449,13 +449,24 @@ function DataSection() {
     }
   }
 
-  const exportBackup = () => {
+  const [exporting, setExporting] = useState(false)
+
+  const exportBackup = async () => {
     if (!exportAllowed) {
       toast.error('Data export is a Pro feature.', { action: { label: 'See plans', onClick: () => router.push('/pricing') } })
       return
     }
-    downloadJSON(`pennyward-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.parse(exportState()))
-    toast.success('Full backup exported as JSON.')
+    setExporting(true)
+    try {
+      const serverData = await fetchJSON<Record<string, unknown>>('/api/export')
+      const clientData = JSON.parse(exportState())
+      downloadJSON(`pennyward-backup-${new Date().toISOString().slice(0, 10)}.json`, { ...serverData, client: clientData })
+      toast.success('Full backup exported as JSON.')
+    } catch {
+      toast.error('Could not export your data. Please try again.')
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -463,8 +474,9 @@ function DataSection() {
       <Card className="shadow-card">
         <CardHeader><CardTitle className="text-base">Export & backup</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={exportBackup}>
-            <Download className="mr-1.5 h-4 w-4" />{exportAllowed ? 'Export all data (JSON)' : 'Export all data (Pro)'}
+          <Button variant="outline" onClick={exportBackup} disabled={exporting}>
+            <Download className="mr-1.5 h-4 w-4" />
+            {exporting ? 'Exporting…' : exportAllowed ? 'Export all data (JSON)' : 'Export all data (Pro)'}
           </Button>
           <Button variant="outline" onClick={() => {
             const input = document.createElement('input')

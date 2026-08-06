@@ -5,6 +5,7 @@ import { withAuthErrorHandling } from '@/lib/withAuth'
 import { savePayoffScenarioSchema } from '@/lib/validation/debts'
 import { round2 } from '@/lib/format'
 import { PLAN_LIMITS, upgradeRequired } from '@/lib/plan'
+import { syncDebtFreeGoal } from './syncGoal'
 
 function toDTO(row: Awaited<ReturnType<typeof db.payoffScenario.findFirstOrThrow>>) {
   return {
@@ -37,5 +38,9 @@ export const POST = withAuthErrorHandling(async (req: Request) => {
   }
 
   const row = await db.payoffScenario.create({ data: { ...parsed.data, userId } })
+  await syncDebtFreeGoal(
+    userId, row.id, row.name, Number(row.extraMonthly), Number(row.oneTimePayment),
+    row.startMonth, row.strategy, row.customOrder,
+  )
   return NextResponse.json(toDTO(row), { status: 201 })
 })

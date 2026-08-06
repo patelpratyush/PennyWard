@@ -18,6 +18,7 @@ beforeEach(async () => {
   currentPlan = 'pro'
   await db.user.upsert({ where: { id: 'user_test' }, update: {}, create: { id: 'user_test', email: 'debt@example.com' } })
   await db.user.upsert({ where: { id: 'user_other' }, update: {}, create: { id: 'user_other', email: 'debt-other@example.com' } })
+  await db.goal.deleteMany({ where: { userId: { in: ['user_test', 'user_other'] } } })
   await db.payoffScenario.deleteMany({ where: { userId: { in: ['user_test', 'user_other'] } } })
   await db.debt.deleteMany({ where: { userId: { in: ['user_test', 'user_other'] } } })
 })
@@ -213,5 +214,65 @@ describe('payoff-scenarios cross-user ownership boundary', () => {
     expect(res.status).toBe(200)
     const gone = await db.payoffScenario.findUnique({ where: { id: mine.id } })
     expect(gone).toBeNull()
+  })
+})
+
+describe('R11.2 — debt-free goal auto-sync on scenario save', () => {
+  it('creates a linked "debt-free" goal with target = total debt and targetDate = projected payoff date', async () => {
+    await db.debt.create({
+      data: { userId: 'user_test', name: 'Card', lender: 'Chase', type: 'credit_card', balance: 1000, originalBalance: 1000, apr: 20, minimumPayment: 50, dueDay: 1 },
+    })
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Snowball plan', strategy: 'snowball', extraMonthly: 200, oneTimePayment: 0, startMonth: '2026-08' }),
+    })
+    const res = await scenariosPOST(req)
+    const scenario = await res.json()
+
+    const goal = await db.goal.findUnique({ where: { scenarioId: scenario.id } })
+    expect(goal).not.toBeNull()
+    expect(goal?.name).toBe('Debt-free: Snowball plan')
+    expect(Number(goal?.targetAmount)).toBe(1000)
+    expect(Number(goal?.monthlyContribution)).toBe(200)
+  })
+
+  it('updates the linked goal (not duplicate) when the scenario is edited', async () => {
+    await db.debt.create({
+      data: { userId: 'user_test', name: 'Card', lender: 'Chase', type: 'credit_card', balance: 1000, originalBalance: 1000, apr: 20, minimumPayment: 50, dueDay: 1 },
+    })
+    const created = await scenariosPOST(new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Plan A', strategy: 'snowball', extraMonthly: 100, oneTimePayment: 0, startMonth: '2026-08' }),
+    })).then((r) => r.json())
+
+    await scenarioPATCH(
+      new Request('http://x', { method: 'PATCH', body: JSON.stringify({ extraMonthly: 400 }) }),
+      { params: Promise.resolve({ id: created.id }) },
+    )
+
+    const goals = await db.goal.findMany({ where: { userId: 'user_test' } })
+    expect(goals).toHaveLength(1)
+    expect(Number(goals[0].monthlyContribution)).toBe(400)
+  })
+
+  it('skips goal creation for the minimum-only strategy', async () => {
+    await db.debt.create({
+      data: { userId: 'user_test', name: 'Card', lender: 'Chase', type: 'credit_card', balance: 1000, originalBalance: 1000, apr: 20, minimumPayment: 50, dueDay: 1 },
+    })
+    await scenariosPOST(new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Just minimums', strategy: 'minimum', extraMonthly: 0, oneTimePayment: 0, startMonth: '2026-08' }),
+    }))
+    const goals = await db.goal.findMany({ where: { userId: 'user_test' } })
+    expect(goals).toHaveLength(0)
+  })
+
+  it('skips goal creation when the user has no debts', async () => {
+    await scenariosPOST(new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'No debts yet', strategy: 'avalanche', extraMonthly: 100, oneTimePayment: 0, startMonth: '2026-08' }),
+    }))
+    const goals = await db.goal.findMany({ where: { userId: 'user_test' } })
+    expect(goals).toHaveLength(0)
   })
 })

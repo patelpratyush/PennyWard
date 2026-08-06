@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
 import { withAuthErrorHandling } from '@/lib/withAuth'
 import { savePayoffScenarioSchema } from '@/lib/validation/debts'
+import { syncDebtFreeGoal } from '../syncGoal'
 
 const updatePayoffScenarioSchema = savePayoffScenarioSchema.partial()
 
@@ -14,6 +15,10 @@ export const PATCH = withAuthErrorHandling(async (req: Request, { params }: { pa
   const existing = await db.payoffScenario.findFirst({ where: { id, userId } })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const row = await db.payoffScenario.update({ where: { id }, data: parsed.data })
+  await syncDebtFreeGoal(
+    userId, row.id, row.name, Number(row.extraMonthly), Number(row.oneTimePayment),
+    row.startMonth, row.strategy, row.customOrder,
+  )
   return NextResponse.json({ id: row.id })
 })
 

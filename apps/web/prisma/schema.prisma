@@ -260,7 +260,8 @@ model PayoffScenario {
   customOrder   String[]       @default([])
   createdAt     DateTime       @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goals Goal[]
 
   @@index([userId])
 }
@@ -382,6 +383,7 @@ model Goal {
   id                  String       @id @default(cuid())
   userId              String
   accountId           String?
+  scenarioId          String?      @unique
   name                String
   type                GoalType
   targetAmount        Decimal      @db.Decimal(14, 2)
@@ -395,6 +397,10 @@ model Goal {
 
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   account       FinancialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  /// The payoff scenario this goal was auto-generated from (R11.2). SetNull,
+  /// not Cascade — deleting the scenario shouldn't delete a goal the user may
+  /// have kept contributing to.
+  scenario      PayoffScenario?   @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
   contributions GoalContribution[]
 
   @@index([userId])

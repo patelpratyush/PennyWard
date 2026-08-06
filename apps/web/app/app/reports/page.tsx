@@ -120,7 +120,25 @@ export default function Reports() {
       const largest = [...expenses].sort((a, b) => b.amount - a.amount).slice(0, 5)
       const byDay = new Map<string, number>()
       for (const t of expenses) byDay.set(t.date, round2((byDay.get(t.date) ?? 0) + t.amount))
-      return { kind: 'spending' as const, totalExp, byCat, topMerchants, largest, byDay: [...byDay.entries()].map(([date, value]) => ({ date, value })).sort((a, b) => a.date.localeCompare(b.date)) }
+
+      // Category deep-dive (R8.3): when a single category is selected, trend
+      // its spend by month + list every matching transaction. `ranged` is
+      // already server-filtered to categoryFilter, so this is just a reshape.
+      let categoryDeepDive: { name: string; byMonth: { month: string; value: number }[]; transactions: typeof expenses } | null = null
+      if (categoryFilter !== 'all') {
+        const catName = categories.find((c) => c.id === categoryFilter)?.name ?? 'Category'
+        const byMonth = new Map<string, number>()
+        for (const t of expenses) {
+          const month = t.date.slice(0, 7)
+          byMonth.set(month, round2((byMonth.get(month) ?? 0) + t.amount))
+        }
+        categoryDeepDive = {
+          name: catName,
+          byMonth: [...byMonth.entries()].map(([month, value]) => ({ month, value })).sort((a, b) => a.month.localeCompare(b.month)),
+          transactions: [...expenses].sort((a, b) => b.date.localeCompare(a.date)),
+        }
+      }
+      return { kind: 'spending' as const, totalExp, byCat, topMerchants, largest, byDay: [...byDay.entries()].map(([date, value]) => ({ date, value })).sort((a, b) => a.date.localeCompare(b.date)), categoryDeepDive }
     }
     if (active === 'cashflow') {
       const rows = summaries.map((s) => ({ ...s, savingsRate: s.income > 0 ? round2((s.net / s.income) * 100) : 0 }))
@@ -173,7 +191,7 @@ export default function Reports() {
       return { kind: 'transactions' as const, rows: ranged }
     }
     return null
-  }, [active, ranged, summaries, accounts, budget, categories, budgetMonthTransactions, debts, goals, bills, netWorthHistory])
+  }, [active, ranged, summaries, accounts, budget, categories, budgetMonthTransactions, debts, goals, bills, netWorthHistory, categoryFilter])
 
   const exportReport = () => {
     if (!report || !active) return
@@ -384,6 +402,44 @@ export default function Reports() {
               </CardContent>
             </Card>
           </div>
+
+          {report.categoryDeepDive && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card className="shadow-card">
+                <CardHeader><CardTitle className="text-base">{report.categoryDeepDive.name} — trend</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-48">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={report.categoryDeepDive.byMonth}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                        <XAxis dataKey="month" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => format(parseISO(`${v}-01`), 'MMM yy')} />
+                        <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v}`} width={40} />
+                        <RTooltip formatter={(v: number) => formatCurrency(v)} labelFormatter={(v) => format(parseISO(`${v}-01`), 'MMMM yyyy')} />
+                        <Area type="monotone" dataKey="value" name={report.categoryDeepDive.name} stroke="hsl(var(--chart-2))" fill="hsl(var(--chart-2)/0.15)" strokeWidth={2} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="shadow-card">
+                <CardHeader><CardTitle className="text-base">{report.categoryDeepDive.name} — transactions</CardTitle></CardHeader>
+                <CardContent className="max-h-72 overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-card"><TableRow><TableHead>Date</TableHead><TableHead>Merchant</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {report.categoryDeepDive.transactions.map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell className="whitespace-nowrap tnum">{formatDate(t.date, 'MMM d, yyyy')}</TableCell>
+                          <TableCell className="max-w-40 truncate text-sm">{t.merchant}</TableCell>
+                          <TableCell className="text-right tnum">{formatCurrency(t.amount)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       )}
 
