@@ -501,7 +501,7 @@ export default function Onboarding() {
 
       {/* Footer nav */}
       {step < 7 && (
-        <footer className="fixed inset-x-0 bottom-0 border-t border-border bg-background/95 backdrop-blur">
+        <footer className="translucent-chrome fixed inset-x-0 bottom-0 border-t border-border bg-background/95 backdrop-blur">
           <div className="mx-auto flex h-18 max-w-3xl items-center justify-between px-4 py-3">
             <Button variant="ghost" onClick={() => go(Math.max(1, step - 1))} disabled={step === 1}>
               <ArrowLeft className="mr-1.5 h-4 w-4" />Back

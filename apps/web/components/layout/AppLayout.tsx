@@ -340,7 +340,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <div className={cn('flex min-h-screen flex-col transition-[padding] duration-200', collapsed ? 'lg:pl-[68px]' : 'lg:pl-64')}>
         {/* Header */}
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur sm:px-5">
+        <header className="translucent-chrome sticky top-0 z-20 flex h-16 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur sm:px-5">
           <Button variant="ghost" size="icon" className="h-9 w-9 lg:hidden" aria-label="Open menu" onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
@@ -436,7 +436,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
 
         {/* Mobile bottom navigation */}
-        <nav className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-border bg-background/95 backdrop-blur lg:hidden" aria-label="Mobile navigation">
+        <nav className="translucent-chrome fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-border bg-background/95 backdrop-blur lg:hidden" aria-label="Mobile navigation">
           {bottomNav.map((item) => {
             const isActive = pathname === item.to || pathname.startsWith(`${item.to}/`)
             return (

@@ -318,7 +318,7 @@ export default function TransactionsImport() {
       </ol>
 
       <AnimatePresence mode="wait">
-        <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }}>
+        <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ type: 'spring', bounce: 0, duration: 0.3 }}>
           {/* STEP 1 — upload */}
           {step === 1 && !csvImportAllowed && (
             <Card className="shadow-card">

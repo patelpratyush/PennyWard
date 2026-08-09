@@ -18,7 +18,7 @@ export function MarketingNav() {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--rule-strong)] bg-[var(--paper)]/92 backdrop-blur-[6px]">
+    <header className="translucent-chrome sticky top-0 z-50 border-b border-[var(--rule-strong)] bg-[var(--paper)]/92 backdrop-blur-[6px]">
       <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-8 px-5 sm:px-8">
         <Link href="/" aria-label="Pennyward home">
           <Logo />

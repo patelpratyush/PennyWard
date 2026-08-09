@@ -52,7 +52,6 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
-    "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.42.2",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.562.0",
@@ -68,7 +67,6 @@
     "recharts": "^2.15.4",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
-    "vaul": "^1.1.2",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },

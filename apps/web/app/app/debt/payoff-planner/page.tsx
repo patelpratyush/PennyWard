@@ -160,7 +160,7 @@ export default function PayoffPlanner() {
       </ol>
 
       <AnimatePresence mode="wait">
-        <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }}>
+        <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ type: 'spring', bounce: 0, duration: 0.3 }}>
           {step === 1 && (
             <Card className="shadow-card">
               <CardHeader><CardTitle className="text-base">Which debts should the plan cover?</CardTitle></CardHeader>

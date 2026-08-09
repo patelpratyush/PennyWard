@@ -1,5 +1,6 @@
 'use client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MotionConfig } from 'framer-motion'
 import { useState } from 'react'
 import { Toaster } from '@/components/ui/sonner'
 import { useTheme } from '@/hooks/useTheme'
@@ -15,7 +16,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <ThemeEffect />
-      {children}
+      {/* reducedMotion="user" makes every framer-motion animation in the app
+          honor prefers-reduced-motion automatically (transforms/opacity still
+          apply, just instantly) — the CSS media query in globals.css only
+          covers plain CSS transitions/keyframes, not JS-driven motion. */}
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
       <Toaster richColors position="top-right" />
     </QueryClientProvider>
   )

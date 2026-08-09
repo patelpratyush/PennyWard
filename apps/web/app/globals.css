@@ -369,3 +369,25 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Translucent chrome (headers, mobile nav, onboarding footer) — see
+   .translucent-chrome usages. Reduced-transparency swaps the blur for a
+   near-solid background instead of just leaving it translucent; reduced-
+   contrast goes further with a fully solid background and a defined border,
+   since a barely-there border reads poorly against a solid fill. */
+@media (prefers-reduced-transparency: reduce) {
+  .translucent-chrome {
+    /* --paper only exists inside .ledger (marketing pages); everywhere else
+       falls through to the shadcn --background token. */
+    background-color: var(--paper, var(--background)) !important;
+    backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .translucent-chrome {
+    background-color: var(--paper, var(--background)) !important;
+    backdrop-filter: none !important;
+    border-color: var(--ink, var(--foreground)) !important;
+  }
+}
