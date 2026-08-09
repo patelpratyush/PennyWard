@@ -8,12 +8,13 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@pennyward/core": "*",
     "@auth/prisma-adapter": "^2.11.3",
     "@hookform/resolvers": "^5.4.0",
+    "@pennyward/core": "*",
     "@prisma/client": "^6.19.3",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -72,6 +73,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",

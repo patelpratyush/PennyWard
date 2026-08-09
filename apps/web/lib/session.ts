@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
-import type { Plan } from '@prisma/client'
+import { Prisma, type Plan } from '@prisma/client'
 
 /**
  * Thrown by `getRequiredSession` when there is no authenticated user.
@@ -46,15 +46,31 @@ export async function getRequiredSession(): Promise<{ userId: string; plan: Plan
   // dashboard) gets a profile row the first time they actually use the app.
   // `upsert` returns the full row, so an existing user's `plan` (set manually
   // in the DB, never by the app) round-trips here without a second query.
-  const row = await db.user.upsert({
-    where: { id: user.id },
-    update: {},
-    create: {
-      id: user.id,
-      email: user.email ?? null,
-      name: (user.user_metadata?.name as string | undefined) ?? null,
-    },
-  })
+  //
+  // A brand-new user's first page load fires several parallel API calls, each
+  // hitting this at once — Prisma's `upsert` isn't a single atomic UPSERT on
+  // Postgres (it's SELECT then INSERT/UPDATE), so two concurrent creates can
+  // both pass the SELECT and race on the INSERT, and the loser gets a P2002
+  // unique-constraint error instead of the row. Since only one is racing to
+  // *create* the same id, that failure means the row now exists — just fetch it.
+  let row
+  try {
+    row = await db.user.upsert({
+      where: { id: user.id },
+      update: {},
+      create: {
+        id: user.id,
+        email: user.email ?? null,
+        name: (user.user_metadata?.name as string | undefined) ?? null,
+      },
+    })
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      row = await db.user.findUniqueOrThrow({ where: { id: user.id } })
+    } else {
+      throw err
+    }
+  }
 
   return { userId: user.id, plan: row.plan }
 }
