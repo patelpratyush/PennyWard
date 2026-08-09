@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Bell, Briefcase, Calculator, Car, ChevronRight, CreditCard, FileBarChart, Goal,
-  Home, Landmark, LineChart, ListOrdered, LogOut, Menu, Moon, Plus,
+  Home, Keyboard, Landmark, LineChart, ListOrdered, LogOut, Menu, Moon, Plus,
   Receipt, Repeat, Search, Settings, Sun, SunMoon, Upload, User, Wallet, X,
 } from 'lucide-react'
 import { useStore } from '@/stores/useStore'
@@ -15,6 +15,7 @@ import { useDebts } from '@/hooks/queries/useDebts'
 import { useGoals } from '@/hooks/queries/useGoals'
 import { useCategories } from '@/hooks/queries/useCategories'
 import { useMe } from '@/hooks/queries/useMe'
+import { useGlobalShortcuts, SHORTCUTS_HELP } from '@/hooks/useGlobalShortcuts'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/shared/Logo'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command'
@@ -233,6 +235,24 @@ function GlobalSearch({ open, setOpen }: { open: boolean; setOpen: (v: boolean) 
   )
 }
 
+function ShortcutsHelp({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>Keyboard shortcuts</DialogTitle></DialogHeader>
+        <ul className="divide-y">
+          {SHORTCUTS_HELP.map((s) => (
+            <li key={s.label} className="flex items-center justify-between py-2 text-sm">
+              <span className="text-muted-foreground">{s.label}</span>
+              <kbd className="border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold">{s.keys}</kbd>
+            </li>
+          ))}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function SidebarContent({ collapsed, onNavigate, plan }: { collapsed?: boolean; onNavigate?: () => void; plan?: string }) {
   const pathname = usePathname()
   return (
@@ -287,11 +307,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const profile = useStore((s) => s.profile)
   const density = useStore((s) => s.settings.density)
   const { data: me } = useMe()
+  useGlobalShortcuts({ onOpenHelp: () => setShortcutsOpen(true) })
 
   const crumbs = useMemo(() => {
     const parts = pathname.split('/').filter(Boolean).slice(1)
@@ -352,6 +374,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
             <Button variant="ghost" size="icon" className="h-9 w-9 sm:hidden" aria-label="Search" onClick={() => setSearchOpen(true)}>
               <Search className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="hidden h-9 w-9 sm:inline-flex" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={() => setShortcutsOpen(true)}>
+              <Keyboard className="h-4 w-4" />
             </Button>
 
             {/* Quick add */}
@@ -432,6 +457,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <GlobalSearch open={searchOpen} setOpen={setSearchOpen} />
+      <ShortcutsHelp open={shortcutsOpen} setOpen={setShortcutsOpen} />
     </div>
   )
 }
