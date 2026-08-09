@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { GET, POST } from '@/app/api/holdings/route'
 import { PATCH, DELETE } from '@/app/api/holdings/[id]/route'
+import { POST as importPOST } from '@/app/api/holdings/import/route'
 import { db } from '@/lib/db'
 
 vi.mock('@/lib/session', () => ({ getRequiredSession: vi.fn(async () => ({ userId: currentUserId, plan: 'pro' })) }))
@@ -83,5 +84,51 @@ describe('holdings cross-user ownership boundary', () => {
     const res = await DELETE(new Request('http://x', { method: 'DELETE' }), { params: Promise.resolve({ id: created.id }) })
     expect(res.status).toBe(200)
     expect(await db.holding.findUnique({ where: { id: created.id } })).toBeNull()
+  })
+})
+
+describe('R6.1 — POST /api/holdings/import', () => {
+  it('bulk-creates multiple holdings, uppercasing tickers', async () => {
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ rows: [{ ticker: 'aapl', shares: 10, costBasis: 180.5 }, { ticker: 'vti', shares: 20 }] }),
+    })
+    const res = await importPOST(req)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.imported).toBe(2)
+
+    const getRes = await GET()
+    const rows = await getRes.json()
+    expect(rows.find((h: { ticker: string }) => h.ticker === 'AAPL')?.shares).toBe(10)
+    expect(rows.find((h: { ticker: string }) => h.ticker === 'VTI')?.costBasis).toBeUndefined()
+  })
+
+  it('rejects an empty rows array with 400', async () => {
+    const res = await importPOST(new Request('http://x', { method: 'POST', body: JSON.stringify({ rows: [] }) }))
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects a row with non-positive shares with 400 (whole batch, not partial import)', async () => {
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ rows: [{ ticker: 'AAPL', shares: 10 }, { ticker: 'BAD', shares: 0 }] }),
+    })
+    const res = await importPOST(req)
+    expect(res.status).toBe(400)
+    const count = await db.holding.count({ where: { userId: 'user_test' } })
+    expect(count).toBe(0)
+  })
+
+  it('never lets one user\'s import target another user\'s account', async () => {
+    const otherAccount = await db.financialAccount.create({
+      data: { userId: 'user_other', name: 'Their Brokerage', institution: 'X', type: 'investment', balance: 0 },
+    })
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ accountId: otherAccount.id, rows: [{ ticker: 'AAPL', shares: 10 }] }),
+    })
+    const res = await importPOST(req)
+    expect(res.status).toBe(404)
   })
 })

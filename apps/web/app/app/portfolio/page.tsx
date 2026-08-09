@@ -1,10 +1,11 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import Papa from 'papaparse'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
-import { Info, Plus, Search, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
+import { FileUp, Info, Plus, Search, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
-import { useHoldings, useCreateHolding, useDeleteHolding } from '@/hooks/queries/useHoldings'
+import { useHoldings, useCreateHolding, useDeleteHolding, useImportHoldings } from '@/hooks/queries/useHoldings'
 import { useAccounts } from '@/hooks/queries/useAccounts'
 import { PageHeader } from '@/components/shared/Misc'
 import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
@@ -21,6 +22,15 @@ import { useQuotes } from '@/hooks/queries/useQuotes'
 import { formatCurrency, round2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+interface ImportRow {
+  ticker: string
+  shares: number
+  costBasis?: number
+  valid: boolean
+}
+
+const SAMPLE_HOLDINGS_CSV = `Ticker,Shares,Cost Basis\nAAPL,10,180.50\nMSFT,5,340.00\nVTI,20,245.75`
+
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-6))', 'hsl(var(--chart-7))', 'hsl(var(--chart-8))']
 
 export default function Portfolio() {
@@ -31,12 +41,19 @@ export default function Portfolio() {
   const { data: accounts = [] } = useAccounts()
   const investmentAccounts = accounts.filter((a) => a.type === 'investment' && !a.archived)
 
+  const importHoldings = useImportHoldings()
   const [addOpen, setAddOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [ticker, setTicker] = useState('')
   const [shares, setShares] = useState('')
   const [costBasis, setCostBasis] = useState('')
   const [accountId, setAccountId] = useState('')
+
+  const [importOpen, setImportOpen] = useState(false)
+  const [importFileName, setImportFileName] = useState('')
+  const [importRows, setImportRows] = useState<ImportRow[]>([])
+  const [importAccountId, setImportAccountId] = useState('')
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   const results = useMemo(() => searchStocks(search), [search])
   const holdingTickers = useMemo(() => holdings.map((h) => h.ticker), [holdings])
@@ -81,6 +98,54 @@ export default function Portfolio() {
     )
   }
 
+  const parseHoldingsFile = (file: File) => {
+    setImportFileName(file.name)
+    Papa.parse<Record<string, string>>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        const hdrs = res.meta.fields ?? []
+        const find = (candidates: string[]) => hdrs.find((h) => candidates.some((c) => h.toLowerCase().includes(c)))
+        const tickerCol = find(['ticker', 'symbol'])
+        const sharesCol = find(['shares', 'quantity', 'qty'])
+        const costCol = find(['cost basis', 'cost', 'avg price', 'price paid'])
+        const parsed: ImportRow[] = res.data.map((r) => {
+          const ticker = (tickerCol ? r[tickerCol] : '').trim().toUpperCase()
+          const shares = sharesCol ? Number(r[sharesCol]) : NaN
+          const costRaw = costCol ? r[costCol] : ''
+          const costBasis = costRaw ? Number(costRaw.replace(/[$,]/g, '')) : undefined
+          return { ticker, shares, costBasis, valid: !!ticker && Number.isFinite(shares) && shares > 0 }
+        })
+        setImportRows(parsed)
+        toast.success(`Parsed ${res.data.length} rows from ${file.name}.`)
+      },
+      error: () => toast.error('We could not read that file. Make sure it is a valid CSV.'),
+    })
+  }
+
+  const useSampleHoldings = () => {
+    const blob = new Blob([SAMPLE_HOLDINGS_CSV], { type: 'text/csv' })
+    parseHoldingsFile(new File([blob], 'sample-holdings.csv', { type: 'text/csv' }))
+  }
+
+  const validImportRows = importRows.filter((r) => r.valid)
+
+  const resetImport = () => { setImportFileName(''); setImportRows([]); setImportAccountId('') }
+
+  const doImportHoldings = () => {
+    importHoldings.mutate(
+      { accountId: importAccountId || null, rows: validImportRows.map(({ ticker, shares, costBasis }) => ({ ticker, shares, costBasis })) },
+      {
+        onSuccess: (res) => {
+          toast.success(`${res.imported} holdings imported.`)
+          setImportOpen(false)
+          resetImport()
+        },
+        onError: () => toast.error('Could not import holdings.'),
+      },
+    )
+  }
+
   if (holdingsQ.isLoading) {
     return (
       <div>
@@ -95,7 +160,12 @@ export default function Portfolio() {
       <PageHeader
         title="Portfolio"
         description="Shares you own — cost basis, market value, and gain/loss."
-        actions={<Button onClick={() => setAddOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Add holding</Button>}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setImportOpen(true)}><FileUp className="mr-1.5 h-4 w-4" />Import CSV</Button>
+            <Button onClick={() => setAddOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Add holding</Button>
+          </>
+        }
       />
 
       <div className="mb-4 flex items-center gap-2 rounded-lg bg-info-muted px-3 py-2 text-xs text-info">
@@ -272,6 +342,75 @@ export default function Portfolio() {
             <Button className="w-full" disabled={!ticker || !(Number(shares) > 0) || createHolding.isPending} onClick={addHolding}>
               Add holding
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={importOpen} onOpenChange={(v) => { setImportOpen(v); if (!v) resetImport() }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Import holdings from CSV</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            {importRows.length === 0 ? (
+              <div
+                role="button" tabIndex={0}
+                aria-label="Upload a CSV file"
+                onClick={() => importInputRef.current?.click()}
+                onKeyDown={(e) => e.key === 'Enter' && importInputRef.current?.click()}
+                className="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition-colors hover:border-primary/60 hover:bg-muted/40"
+              >
+                <FileUp className="h-8 w-8 text-primary" />
+                <p className="mt-2 text-sm font-medium">Click to choose a CSV</p>
+                <p className="mt-1 text-xs text-muted-foreground">Columns: Ticker, Shares, Cost Basis (optional)</p>
+                <input
+                  ref={importInputRef} type="file" accept=".csv,text/csv" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) parseHoldingsFile(f) }}
+                  aria-label="Choose CSV file"
+                />
+                <Button variant="ghost" size="sm" className="mt-2" onClick={(e) => { e.stopPropagation(); useSampleHoldings() }}>
+                  Try a sample CSV
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{importFileName}</span>
+                  <span>{validImportRows.length} of {importRows.length} rows valid</span>
+                </div>
+                <div className="max-h-56 overflow-y-auto rounded-lg border">
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Ticker</TableHead><TableHead className="text-right">Shares</TableHead><TableHead className="text-right">Cost basis</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {importRows.map((r, i) => (
+                        <TableRow key={i} className={cn(!r.valid && 'bg-destructive/5')}>
+                          <TableCell className="text-sm">{r.ticker || '—'}</TableCell>
+                          <TableCell className="text-right text-sm tnum">{Number.isFinite(r.shares) ? r.shares : '—'}</TableCell>
+                          <TableCell className="text-right text-sm tnum">{r.costBasis != null ? formatCurrency(r.costBasis) : '—'}</TableCell>
+                          <TableCell className="text-xs">{r.valid ? <span className="text-success">Ready</span> : <span className="text-destructive">Invalid</span>}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                {investmentAccounts.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label>Linked account (applies to all rows)</Label>
+                    <Select value={importAccountId || 'none'} onValueChange={(v) => setImportAccountId(v === 'none' ? '' : v)}>
+                      <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {investmentAccounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={resetImport}>Choose a different file</Button>
+                  <Button className="flex-1" disabled={validImportRows.length === 0 || importHoldings.isPending} onClick={doImportHoldings}>
+                    Import {validImportRows.length} holding{validImportRows.length === 1 ? '' : 's'}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>

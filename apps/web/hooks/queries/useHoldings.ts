@@ -47,3 +47,12 @@ export function useDeleteHolding() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['holdings'] }),
   })
 }
+
+export function useImportHoldings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { accountId?: string | null; rows: { ticker: string; shares: number; costBasis?: number }[] }) =>
+      fetchJSON<{ imported: number }>('/api/holdings/import', { method: 'POST', body: JSON.stringify(input) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['holdings'] }),
+  })
+}
