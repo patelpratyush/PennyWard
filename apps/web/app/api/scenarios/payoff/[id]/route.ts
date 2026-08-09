@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
 import { withAuthErrorHandling } from '@/lib/withAuth'
-import { savePayoffScenarioSchema } from '@/lib/validation/debts'
+import { savePayoffScenarioSchema, type lumpSumSchema } from '@/lib/validation/debts'
 import { syncDebtFreeGoal } from '../syncGoal'
+import type { z } from 'zod'
 
 const updatePayoffScenarioSchema = savePayoffScenarioSchema.partial()
 
@@ -17,7 +18,7 @@ export const PATCH = withAuthErrorHandling(async (req: Request, { params }: { pa
   const row = await db.payoffScenario.update({ where: { id }, data: parsed.data })
   await syncDebtFreeGoal(
     userId, row.id, row.name, Number(row.extraMonthly), Number(row.oneTimePayment),
-    row.startMonth, row.strategy, row.customOrder,
+    row.startMonth, row.strategy, row.customOrder, row.lumpSums as z.infer<typeof lumpSumSchema>[],
   )
   return NextResponse.json({ id: row.id })
 })

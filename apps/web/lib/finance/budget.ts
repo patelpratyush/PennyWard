@@ -1,9 +1,13 @@
 // ─── Budget, net-worth, and goal calculations ────────────────────────────────
+// budgetStatus() moved to packages/core (pure, no app-type dependency); the
+// rest here stay app-local since they operate on the richer app-shaped
+// Transaction/Budget types (splits, etc.) that packages/core deliberately
+// doesn't depend on.
 import { differenceInCalendarMonths, parseISO } from 'date-fns'
 import { round2 } from '../format'
 import type { Account, Budget, Goal, Transaction } from '@/types'
 
-export type BudgetStatus = 'on_track' | 'near_limit' | 'over_budget' | 'no_activity'
+export { budgetStatus, type BudgetStatus } from '@pennyward/core'
 
 export function spendingByCategory(transactions: Transaction[], month?: string): Map<string, number> {
   const map = new Map<string, number>()
@@ -17,15 +21,6 @@ export function spendingByCategory(transactions: Transaction[], month?: string):
     }
   }
   return map
-}
-
-export function budgetStatus(budgeted: number, spent: number): BudgetStatus {
-  if (spent === 0) return 'no_activity'
-  if (budgeted <= 0) return spent > 0 ? 'over_budget' : 'no_activity'
-  const pct = (spent / budgeted) * 100
-  if (pct > 100) return 'over_budget'
-  if (pct >= 85) return 'near_limit'
-  return 'on_track'
 }
 
 export function budgetTotals(budget: Budget, spent: Map<string, number>) {

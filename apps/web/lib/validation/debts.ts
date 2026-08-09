@@ -14,6 +14,14 @@ export const createDebtSchema = z.object({
 })
 export const updateDebtSchema = createDebtSchema.partial()
 
+// R4.7: a lump sum scheduled for an arbitrary future month (1-indexed from
+// startMonth), optionally targeted at a specific debt.
+export const lumpSumSchema = z.object({
+  month: z.number().int().min(1).max(600),
+  amount: z.number().positive(),
+  debtId: z.string().optional(),
+})
+
 export const savePayoffScenarioSchema = z.object({
   name: z.string().min(1).max(200),
   strategy: z.enum(['minimum', 'snowball', 'avalanche', 'custom']),
@@ -21,4 +29,5 @@ export const savePayoffScenarioSchema = z.object({
   oneTimePayment: z.number().min(0),
   startMonth: z.string().regex(/^\d{4}-\d{2}$/),
   customOrder: z.array(z.string()).default([]),
+  lumpSums: z.array(lumpSumSchema).default([]),
 })

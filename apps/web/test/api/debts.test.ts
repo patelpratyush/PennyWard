@@ -125,6 +125,39 @@ describe('POST /api/scenarios/payoff then GET', () => {
     const res = await scenariosPOST(req)
     expect(res.status).toBe(400)
   })
+
+  it('R4.7: round-trips scheduled, debt-targeted lump sums', async () => {
+    const mine = await db.debt.create({
+      data: { userId: 'user_test', name: 'Card', lender: 'Chase', type: 'credit_card', balance: 1000, originalBalance: 1000, apr: 20, minimumPayment: 50, dueDay: 1 },
+    })
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'December bonus plan', strategy: 'avalanche', extraMonthly: 0, oneTimePayment: 0, startMonth: '2026-01',
+        lumpSums: [{ month: 12, amount: 3000, debtId: mine.id }],
+      }),
+    })
+    const res = await scenariosPOST(req)
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    expect(body.lumpSums).toEqual([{ month: 12, amount: 3000, debtId: mine.id }])
+
+    const getRes = await scenariosGET()
+    const getBody = await getRes.json()
+    expect(getBody.find((s: { name: string }) => s.name === 'December bonus plan').lumpSums).toEqual([{ month: 12, amount: 3000, debtId: mine.id }])
+  })
+
+  it('rejects a negative lump sum amount with 400', async () => {
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'Bad lump sum', strategy: 'avalanche', extraMonthly: 0, oneTimePayment: 0, startMonth: '2026-01',
+        lumpSums: [{ month: 1, amount: -100 }],
+      }),
+    })
+    const res = await scenariosPOST(req)
+    expect(res.status).toBe(400)
+  })
 })
 
 describe('POST /api/scenarios/payoff — Free plan cap', () => {
@@ -234,6 +267,27 @@ describe('R11.2 — debt-free goal auto-sync on scenario save', () => {
     expect(goal?.name).toBe('Debt-free: Snowball plan')
     expect(Number(goal?.targetAmount)).toBe(1000)
     expect(Number(goal?.monthlyContribution)).toBe(200)
+  })
+
+  it('R4.7: a scheduled lump sum pulls the synced goal\'s target date earlier', async () => {
+    const debt = await db.debt.create({
+      data: { userId: 'user_test', name: 'Card', lender: 'Chase', type: 'credit_card', balance: 1000, originalBalance: 1000, apr: 0, minimumPayment: 100, dueDay: 1 },
+    })
+    const withoutLumpSum = await scenariosPOST(new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Plain plan', strategy: 'avalanche', extraMonthly: 0, oneTimePayment: 0, startMonth: '2026-01' }),
+    })).then((r) => r.json())
+    const withLumpSum = await scenariosPOST(new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'Bonus plan', strategy: 'avalanche', extraMonthly: 0, oneTimePayment: 0, startMonth: '2026-01',
+        lumpSums: [{ month: 2, amount: 500, debtId: debt.id }],
+      }),
+    })).then((r) => r.json())
+
+    const goalWithout = await db.goal.findUnique({ where: { scenarioId: withoutLumpSum.id } })
+    const goalWith = await db.goal.findUnique({ where: { scenarioId: withLumpSum.id } })
+    expect(goalWith!.targetDate.getTime()).toBeLessThan(goalWithout!.targetDate.getTime())
   })
 
   it('updates the linked goal (not duplicate) when the scenario is edited', async () => {

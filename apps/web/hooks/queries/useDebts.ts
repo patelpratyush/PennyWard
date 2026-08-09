@@ -5,6 +5,12 @@ import type { Debt, PayoffStrategy } from '@/types'
 
 type CreateDebtInput = Omit<Debt, 'id'>
 
+export interface LumpSum {
+  month: number
+  amount: number
+  debtId?: string
+}
+
 export type PayoffScenario = {
   id: string
   name: string
@@ -13,6 +19,7 @@ export type PayoffScenario = {
   oneTimePayment: number
   startMonth: string
   customOrder: string[]
+  lumpSums: LumpSum[]
 }
 
 type SavePayoffScenarioInput = {
@@ -22,6 +29,7 @@ type SavePayoffScenarioInput = {
   oneTimePayment: number
   startMonth: string
   customOrder?: string[]
+  lumpSums?: LumpSum[]
 }
 
 export function useDebts() {

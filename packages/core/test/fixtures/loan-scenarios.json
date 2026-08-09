@@ -1,0 +1,20 @@
+{
+  "_comment": "Per PRD §12: fixture schedules with expected totals, verified by hand against the standard closed-form amortization formula (equivalent to an Excel PMT/amortization-table export) rather than re-derived from the engine itself — this is what makes the assertions a real spreadsheet cross-check, not a tautology.",
+  "scenarios": [
+    {
+      "name": "zero-apr-even-split",
+      "input": { "principal": 1200, "apr": 0, "termMonths": 12, "startDate": "2026-01-01" },
+      "expected": { "monthlyPayment": 100, "totalInterest": 0, "totalPaid": 1200, "months": 12 }
+    },
+    {
+      "name": "two-month-1pct-monthly",
+      "input": { "principal": 1000, "apr": 12, "termMonths": 2, "startDate": "2026-01-01" },
+      "expected": { "monthlyPayment": 507.51, "totalInterest": 15.02, "totalPaid": 1015.02, "months": 2 }
+    },
+    {
+      "name": "zero-apr-with-extra-monthly",
+      "input": { "principal": 2400, "apr": 0, "termMonths": 24, "startDate": "2026-01-01", "extraMonthly": 100 },
+      "expected": { "totalInterest": 0, "totalPaid": 2400, "months": 12 }
+    }
+  ]
+}

@@ -259,6 +259,9 @@ model PayoffScenario {
   oneTimePayment Decimal       @db.Decimal(12, 2) @default(0)
   startMonth    String         // 'YYYY-MM'
   customOrder   String[]       @default([])
+  /// R4.7: scheduled lump sums, each optionally targeted at a specific debt.
+  /// [{month: number, amount: number, debtId?: string}]
+  lumpSums      Json           @default("[]")
   createdAt     DateTime       @default(now())
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)

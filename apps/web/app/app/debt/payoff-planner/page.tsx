@@ -6,11 +6,11 @@ import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer,
   Tooltip as RTooltip, XAxis, YAxis,
 } from 'recharts'
-import { format, parseISO } from 'date-fns'
-import { ArrowLeft, ArrowRight, Check, PartyPopper, Snowflake, TrendingDown } from 'lucide-react'
+import { differenceInCalendarMonths, format, parseISO } from 'date-fns'
+import { ArrowLeft, ArrowRight, Check, PartyPopper, Plus, Snowflake, TrendingDown, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { UpgradeRequiredError } from '@/lib/fetchJSON'
-import { useDebts, useSavePayoffScenario } from '@/hooks/queries/useDebts'
+import { useDebts, useSavePayoffScenario, type LumpSum } from '@/hooks/queries/useDebts'
 import { PageHeader } from '@/components/shared/Misc'
 import { EmptyState, LoadingSkeleton } from '@/components/shared/States'
 import { Money } from '@/components/shared/Money'
@@ -20,11 +20,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { compareStrategies } from '@/lib/finance/debt'
 import { formatCurrency, formatDate, round2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { PayoffStrategy } from '@/types'
+
+/** Converts a picked calendar date back into the engine's 1-indexed "months
+ * from startMonth" — month 1 is startMonth itself. Clamped to 1 so a date
+ * picked before the plan's start month doesn't produce a nonsensical index. */
+function monthsFromStart(startMonth: string, pickedDate: string): number {
+  if (!pickedDate) return 1
+  return Math.max(1, differenceInCalendarMonths(parseISO(`${pickedDate.slice(0, 7)}-01`), parseISO(`${startMonth}-01`)) + 1)
+}
 
 const strategyInfo: { id: PayoffStrategy; name: string; desc: string }[] = [
   { id: 'minimum', name: 'Minimum payments only', desc: 'Pay only the required minimums. Baseline for comparison — usually the slowest and most expensive path.' },
@@ -42,6 +51,7 @@ export default function PayoffPlanner() {
   const [strategy, setStrategy] = useState<PayoffStrategy>('avalanche')
   const [extraMonthly, setExtraMonthly] = useState(200)
   const [oneTime, setOneTime] = useState(0)
+  const [lumpSums, setLumpSums] = useState<LumpSum[]>([])
   const [customOrder, setCustomOrder] = useState<string[]>([])
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [scenarioName, setScenarioName] = useState('')
@@ -57,8 +67,8 @@ export default function PayoffPlanner() {
 
   const chosen = useMemo(() => debts.filter((d) => selected.includes(d.id)), [debts, selected])
   const comparison = useMemo(
-    () => (chosen.length ? compareStrategies(chosen, extraMonthly, oneTime, startMonth, customOrder) : null),
-    [chosen, extraMonthly, oneTime, startMonth, customOrder])
+    () => (chosen.length ? compareStrategies(chosen, extraMonthly, oneTime, startMonth, customOrder, lumpSums) : null),
+    [chosen, extraMonthly, oneTime, startMonth, customOrder, lumpSums])
   const active = comparison?.[strategy] ?? null
 
   const balanceSeries = useMemo(() => {
@@ -85,7 +95,7 @@ export default function PayoffPlanner() {
   const savePlan = () => {
     if (!scenarioName.trim()) return
     savePayoffScenario.mutate(
-      { name: scenarioName.trim(), strategy, extraMonthly, oneTimePayment: oneTime, startMonth, customOrder },
+      { name: scenarioName.trim(), strategy, extraMonthly, oneTimePayment: oneTime, startMonth, customOrder, lumpSums },
       {
         onSuccess: () => {
           toast.success('Payoff plan saved.')
@@ -217,25 +227,79 @@ export default function PayoffPlanner() {
           )}
 
           {step === 3 && (
-            <Card className="shadow-card">
-              <CardHeader><CardTitle className="text-base">Extra payment power</CardTitle></CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="extra">Extra payment per month ($)</Label>
-                  <Input id="extra" type="number" min="0" value={extraMonthly} onChange={(e) => setExtraMonthly(Number(e.target.value))} />
-                  <p className="text-xs text-muted-foreground">Applied to the priority debt each month.</p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="onetime">One-time payment this month ($)</Label>
-                  <Input id="onetime" type="number" min="0" value={oneTime || ''} placeholder="0" onChange={(e) => setOneTime(Number(e.target.value))} />
-                  <p className="text-xs text-muted-foreground">A bonus, tax refund, or gift applied once.</p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Start month</Label>
-                  <Input value={format(parseISO(`${startMonth}-01`), 'MMMM yyyy')} disabled />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-3">
+              <Card className="shadow-card">
+                <CardHeader><CardTitle className="text-base">Extra payment power</CardTitle></CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="extra">Extra payment per month ($)</Label>
+                    <Input id="extra" type="number" min="0" value={extraMonthly} onChange={(e) => setExtraMonthly(Number(e.target.value))} />
+                    <p className="text-xs text-muted-foreground">Applied to the priority debt each month.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="onetime">One-time payment this month ($)</Label>
+                    <Input id="onetime" type="number" min="0" value={oneTime || ''} placeholder="0" onChange={(e) => setOneTime(Number(e.target.value))} />
+                    <p className="text-xs text-muted-foreground">A bonus, tax refund, or gift applied once.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Start month</Label>
+                    <Input value={format(parseISO(`${startMonth}-01`), 'MMMM yyyy')} disabled />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle className="text-base">Scheduled lump sums</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    A bonus or windfall in a specific future month — optionally aimed at one debt. &quot;My $3k bonus, on the car loan, in December.&quot;
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {lumpSums.map((l, i) => (
+                    <div key={i} className="flex flex-wrap items-end gap-2 rounded-lg border p-2.5">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Month</Label>
+                        <Input
+                          type="date" className="w-40"
+                          value={format(parseISO(`${startMonth}-01`), 'yyyy-MM-') + String(l.month).padStart(2, '0')}
+                          onChange={(e) => {
+                            const month = monthsFromStart(startMonth, e.target.value)
+                            setLumpSums(lumpSums.map((x, j) => (j === i ? { ...x, month } : x)))
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Amount ($)</Label>
+                        <Input
+                          type="number" min="0" className="w-32" value={l.amount || ''}
+                          onChange={(e) => setLumpSums(lumpSums.map((x, j) => (j === i ? { ...x, amount: Number(e.target.value) } : x)))}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Target debt</Label>
+                        <Select value={l.debtId ?? 'auto'} onValueChange={(v) => setLumpSums(lumpSums.map((x, j) => (j === i ? { ...x, debtId: v === 'auto' ? undefined : v } : x)))}>
+                          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">Auto (strategy priority)</SelectItem>
+                            {chosen.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button variant="ghost" size="icon" className="ml-auto" onClick={() => setLumpSums(lumpSums.filter((_, j) => j !== i))} aria-label="Remove lump sum">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline" size="sm"
+                    onClick={() => setLumpSums([...lumpSums, { month: 1, amount: 1000 }])}
+                  >
+                    <Plus className="mr-1.5 h-4 w-4" />Add a lump sum
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {step === 4 && active && comparison && (

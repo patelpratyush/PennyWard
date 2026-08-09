@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { round2 } from '@/lib/format'
-import { simulatePayoff } from '@/lib/finance/debt'
+import { simulatePayoff, type LumpSum } from '@pennyward/core'
 
 /**
  * R11.2: saving/updating a payoff scenario auto-creates/updates a linked
@@ -11,7 +11,7 @@ import { simulatePayoff } from '@/lib/finance/debt'
 export async function syncDebtFreeGoal(
   userId: string, scenarioId: string, scenarioName: string,
   extraMonthly: number, oneTimePayment: number, startMonth: string,
-  strategy: string, customOrder: string[],
+  strategy: string, customOrder: string[], lumpSums: LumpSum[] = [],
 ) {
   if (strategy === 'minimum') return
   const debts = await db.debt.findMany({ where: { userId } })
@@ -20,12 +20,10 @@ export async function syncDebtFreeGoal(
   const totalDebt = round2(debts.reduce((s, d) => s + Number(d.balance), 0))
   const result = simulatePayoff({
     debts: debts.map((d) => ({
-      id: d.id, name: d.name, lender: d.lender, type: d.type, balance: Number(d.balance),
-      originalBalance: Number(d.originalBalance), apr: Number(d.apr), minimumPayment: Number(d.minimumPayment),
-      dueDay: d.dueDay,
+      id: d.id, name: d.name, balance: Number(d.balance), apr: Number(d.apr), minimumPayment: Number(d.minimumPayment),
     })),
     strategy: strategy as 'snowball' | 'avalanche' | 'custom',
-    extraMonthly, oneTimePayment, startMonth, customOrder,
+    extraMonthly, oneTimePayment, startMonth, customOrder, lumpSums,
   })
 
   await db.goal.upsert({

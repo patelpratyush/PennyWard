@@ -2,16 +2,18 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
 import { withAuthErrorHandling } from '@/lib/withAuth'
-import { savePayoffScenarioSchema } from '@/lib/validation/debts'
+import { savePayoffScenarioSchema, type lumpSumSchema } from '@/lib/validation/debts'
 import { round2 } from '@/lib/format'
 import { PLAN_LIMITS, upgradeRequired } from '@/lib/plan'
 import { syncDebtFreeGoal } from './syncGoal'
+import type { z } from 'zod'
 
 function toDTO(row: Awaited<ReturnType<typeof db.payoffScenario.findFirstOrThrow>>) {
   return {
     id: row.id, name: row.name, strategy: row.strategy,
     extraMonthly: round2(Number(row.extraMonthly)), oneTimePayment: round2(Number(row.oneTimePayment)),
     startMonth: row.startMonth, customOrder: row.customOrder,
+    lumpSums: row.lumpSums as z.infer<typeof lumpSumSchema>[],
   }
 }
 
@@ -40,7 +42,8 @@ export const POST = withAuthErrorHandling(async (req: Request) => {
   const row = await db.payoffScenario.create({ data: { ...parsed.data, userId } })
   await syncDebtFreeGoal(
     userId, row.id, row.name, Number(row.extraMonthly), Number(row.oneTimePayment),
-    row.startMonth, row.strategy, row.customOrder,
+    row.startMonth, row.strategy, row.customOrder, row.lumpSums as z.infer<typeof lumpSumSchema>[],
   )
   return NextResponse.json(toDTO(row), { status: 201 })
+
 })
