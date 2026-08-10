@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import { exportState, useStore } from '@/stores/useStore'
 import { useCategories, useCreateCategory, useUpdateCategory } from '@/hooks/queries/useCategories'
 import { useCategorizationRules, useCreateCategorizationRule, useDeleteCategorizationRule } from '@/hooks/queries/useCategorizationRules'
-import { useMe } from '@/hooks/queries/useMe'
+import { useMe, useUpdateMe } from '@/hooks/queries/useMe'
 import { useHousehold, useCreateHousehold, useCreateInvite, useRemoveMember } from '@/hooks/queries/useHousehold'
 import { UpgradeRequiredError, fetchJSON } from '@/lib/fetchJSON'
 import { createClient } from '@/lib/supabase/client'
@@ -191,25 +191,49 @@ function NotificationsSection() {
     ['stockAlerts', 'Stock alerts', 'Watchlist price movements (demo data).'],
     ['productUpdates', 'Product updates', 'Occasional news about Pennyward features.'],
   ]
+  const { data: me } = useMe()
+  const updateMe = useUpdateMe()
   return (
-    <Card className="shadow-card">
-      <CardHeader><CardTitle className="text-base">Notification preferences</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
-        {rows.map(([key, label, desc]) => (
-          <label key={key} className="flex items-center justify-between gap-4 text-sm">
+    <div className="space-y-4">
+      <Card className="shadow-card">
+        <CardHeader><CardTitle className="text-base">Email</CardTitle></CardHeader>
+        <CardContent>
+          <label className="flex items-center justify-between gap-4 text-sm">
             <span>
-              <span className="block font-medium">{label}</span>
-              <span className="text-xs text-muted-foreground">{desc}</span>
+              <span className="block font-medium">Weekly email digest</span>
+              <span className="text-xs text-muted-foreground">A weekly summary email — income/expenses, top spending, upcoming bills, net worth.</span>
             </span>
             <Switch
-              checked={n[key]}
-              onCheckedChange={(v) => updateSettings({ notifications: { ...n, [key]: v } })}
-              aria-label={label}
+              checked={me?.weeklyDigestEnabled ?? false}
+              disabled={!me || updateMe.isPending}
+              onCheckedChange={(v) => updateMe.mutate({ weeklyDigestEnabled: v }, {
+                onSuccess: () => toast.success(v ? 'Weekly digest enabled.' : 'Weekly digest disabled.'),
+                onError: () => toast.error('Could not update this setting.'),
+              })}
+              aria-label="Weekly email digest"
             />
           </label>
-        ))}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      <Card className="shadow-card">
+        <CardHeader><CardTitle className="text-base">In-app notification preferences</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {rows.map(([key, label, desc]) => (
+            <label key={key} className="flex items-center justify-between gap-4 text-sm">
+              <span>
+                <span className="block font-medium">{label}</span>
+                <span className="text-xs text-muted-foreground">{desc}</span>
+              </span>
+              <Switch
+                checked={n[key]}
+                onCheckedChange={(v) => updateSettings({ notifications: { ...n, [key]: v } })}
+                aria-label={label}
+              />
+            </label>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 

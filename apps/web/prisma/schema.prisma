@@ -33,6 +33,9 @@ model User {
   /// No billing integration exists yet — this is set manually (DB/admin),
   /// never by the user themselves. See lib/plan.ts for what each tier gates.
   plan  Plan    @default(free)
+  /// F13: opt-in weekly email digest (Resend). Off by default — sending
+  /// unsolicited email isn't the default for a new signup.
+  weeklyDigestEnabled Boolean @default(false)
 
   financialAccounts   FinancialAccount[]
   categories          Category[]

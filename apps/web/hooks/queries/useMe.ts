@@ -1,5 +1,5 @@
 'use client'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchJSON } from '@/lib/fetchJSON'
 import type { PLAN_LIMITS } from '@/lib/plan'
 
@@ -19,6 +19,7 @@ interface Me {
   email: string | null
   plan: Plan
   limits: SerializedLimits
+  weeklyDigestEnabled: boolean
 }
 
 /**
@@ -31,4 +32,13 @@ interface Me {
  */
 export function useMe() {
   return useQuery({ queryKey: ['me'], queryFn: () => fetchJSON<Me>('/api/me') })
+}
+
+export function useUpdateMe() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: { weeklyDigestEnabled: boolean }) =>
+      fetchJSON('/api/me', { method: 'PATCH', body: JSON.stringify(patch) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['me'] }),
+  })
 }
