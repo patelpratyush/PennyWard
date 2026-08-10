@@ -13,6 +13,26 @@ export function monthlyPayment(principal: number, apr: number, termMonths: numbe
   return round2((principal * r * factor) / (factor - 1))
 }
 
+/**
+ * PRD §7.3's closed-form payoff estimate: n = −log(1 − rB/P) / log(1+r).
+ * Gives an instant months-to-payoff number for a UI label (e.g. a live
+ * slider readout) without running the iterative schedule — the schedule
+ * itself (buildAmortization) is still what drives the table/chart, since
+ * this closed form can't account for a final partial payment or extra/
+ * lump-sum payments mid-schedule.
+ *
+ * Returns `null` when the payment never amortizes the balance (P ≤ rB —
+ * the "payment ≤ interest" edge case: the debt would grow forever).
+ */
+export function closedFormPayoffMonths(balance: number, apr: number, payment: number): number | null {
+  if (balance <= 0) return 0
+  if (payment <= 0) return null
+  const r = apr / 100 / 12
+  if (r === 0) return balance / payment
+  if (payment <= r * balance) return null // never amortizes
+  return -Math.log(1 - (r * balance) / payment) / Math.log(1 + r)
+}
+
 export interface AmortizationOptions {
   principal: number
   apr: number

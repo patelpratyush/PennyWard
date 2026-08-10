@@ -177,6 +177,15 @@ export default function TransactionsImport() {
 
   const mappingValid = mapping.date && (mapping.amount || (mapping.debit && mapping.credit))
 
+  // Credit-card exports (Amex, Discover, and most card issuers) use the
+  // opposite sign convention from checking/debit exports: a charge is a
+  // POSITIVE number and a payment/credit is negative — the reverse of
+  // Chase-style checking CSVs where a debit is negative. Flip the
+  // interpretation based on the selected account's type rather than
+  // guessing from the data, since sign alone can't disambiguate the two.
+  const selectedAccount = accounts.find((a) => a.id === accountId)
+  const isCreditCardAccount = selectedAccount?.type === 'credit_card'
+
   const buildRows = () => {
     const get = (r: Record<string, string>, key: MapKey) => (mapping[key] ? (r[mapping[key]] ?? '').trim() : '')
     const existing = new Set(transactions.map((t) => `${t.accountId}|${t.date}|${t.amount}|${t.merchant.toLowerCase()}`))
@@ -191,7 +200,7 @@ export default function TransactionsImport() {
         const raw = get(r, 'amount')
         amount = parseAmountValue(raw)
         const negative = /^-|^(\(.*\))$/.test(raw.replace(/[$,\s]/g, ''))
-        type = negative ? 'expense' : 'income'
+        type = (isCreditCardAccount ? !negative : negative) ? 'expense' : 'income'
       } else {
         const debit = parseAmountValue(get(r, 'debit'))
         const credit = parseAmountValue(get(r, 'credit'))
@@ -405,6 +414,11 @@ export default function TransactionsImport() {
                 {savedMapping && (
                   <p className="mt-2 flex items-center gap-1.5 text-xs text-success">
                     <CheckCircle2 className="h-3.5 w-3.5" />Applied your saved mapping for this institution — this import will be one click on subsequent files.
+                  </p>
+                )}
+                {isCreditCardAccount && mapping.amount && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <AlertCircle className="h-3.5 w-3.5" />Credit card account selected — charges (positive amounts) will be treated as expenses and payments/credits (negative) as income, matching how card issuers export.
                   </p>
                 )}
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
