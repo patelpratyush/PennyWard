@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AccountDialog } from '@/components/financial/AccountDialog'
+import { PlaidItemsCard } from '@/components/financial/PlaidLink'
 import { netWorth } from '@/lib/finance/budget'
 import { formatCurrency, formatDate, round2 } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -77,6 +78,8 @@ function AccountsInner() {
         description="Every place your money lives — and what you owe."
         actions={<Button onClick={() => { setEditing(null); setDialogOpen(true) }}><Plus className="mr-1.5 h-4 w-4" />Add account</Button>}
       />
+
+      <PlaidItemsCard />
 
       {/* Net worth summary */}
       <div className="grid grid-cols-3 gap-3">

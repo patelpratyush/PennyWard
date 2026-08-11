@@ -52,6 +52,7 @@ model User {
   holdings              Holding[]
   recurringSeries       RecurringSeries[]
   importMappings        ImportMapping[]
+  plaidItems            PlaidItem[]
 
   createdAt DateTime @default(now())
 }
@@ -85,6 +86,10 @@ model FinancialAccount {
   dueDay            Int?
   originalBalance   Decimal?    @db.Decimal(14, 2)
   lastUpdated       DateTime    @default(now())
+  /// R9.3: set when this account was created by (or linked to) a Plaid Item,
+  /// rather than manually. Null for manual/CSV-only accounts.
+  plaidItemDbId  String?
+  plaidAccountId String? @unique
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
@@ -92,6 +97,36 @@ model FinancialAccount {
   balanceSnapshots BalanceSnapshot[]
   goals        Goal[]
   holdings     Holding[]
+  plaidItem    PlaidItem?    @relation(fields: [plaidItemDbId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+enum PlaidItemStatus {
+  active
+  login_required
+  error
+}
+
+/// R9.1-R9.5: one row per linked Plaid Item (one bank login can cover
+/// several FinancialAccount rows). The access token is the one secret in
+/// this app that's genuinely dangerous if leaked — it's AES-256-GCM
+/// encrypted at rest (lib/plaidCrypto.ts) and never sent to the client, per
+/// PRD §11. `cursor` drives /transactions/sync's incremental fetch — null
+/// until the first sync, after which it's Plaid's opaque continuation token.
+model PlaidItem {
+  id                   String          @id @default(cuid())
+  userId               String
+  plaidItemId          String          @unique
+  accessTokenEncrypted String
+  institutionName      String?
+  cursor               String?
+  status               PlaidItemStatus @default(active)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts FinancialAccount[]
 
   @@index([userId])
 }
@@ -169,6 +204,12 @@ model Transaction {
   cleared      Boolean           @default(true)
   source       TransactionSource @default(manual)
   importHash   String?
+  /// R9.4: Plaid's own transaction_id — the identity /transactions/sync uses
+  /// for added/modified/removed diffing. Separate from importHash (which
+  /// still gets computed and checked for Plaid-sourced rows too, so a
+  /// transaction imported via CSV before the account was linked to Plaid
+  /// doesn't get duplicated once sync catches up to the same real charge).
+  plaidTransactionId String? @unique
   createdAt    DateTime          @default(now())
 
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
