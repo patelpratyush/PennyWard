@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { getRequiredSession } from '@/lib/session'
 import { withAuthErrorHandling } from '@/lib/withAuth'
 import { PLAN_LIMITS } from '@/lib/plan'
+import { markOnboardingStep } from '@/lib/onboarding'
 
 /**
  * The Settings → Subscription page and the client-side plan gates
@@ -17,7 +18,10 @@ import { PLAN_LIMITS } from '@/lib/plan'
  */
 export const GET = withAuthErrorHandling(async () => {
   const { userId, plan } = await getRequiredSession()
-  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true, email: true, weeklyDigestEnabled: true } })
+  const user = await db.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { name: true, email: true, weeklyDigestEnabled: true, onboardingSteps: true, onboardingDismissed: true },
+  })
   const limits = PLAN_LIMITS[plan]
   // JSON.stringify silently turns Infinity into null — serialize that
   // explicitly here rather than let it happen implicitly, so the client type
@@ -28,15 +32,21 @@ export const GET = withAuthErrorHandling(async () => {
   return NextResponse.json({
     name: user.name, email: user.email, plan, limits: serializedLimits,
     weeklyDigestEnabled: user.weeklyDigestEnabled,
+    onboardingSteps: user.onboardingSteps as Record<string, boolean>,
+    onboardingDismissed: user.onboardingDismissed,
   })
 })
 
-const patchSchema = z.object({ weeklyDigestEnabled: z.boolean() })
+const patchSchema = z.object({
+  weeklyDigestEnabled: z.boolean().optional(),
+  onboardingDismissed: z.boolean().optional(),
+})
 
 export const PATCH = withAuthErrorHandling(async (req: Request) => {
   const { userId } = await getRequiredSession()
   const parsed = patchSchema.safeParse(await req.json())
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   await db.user.update({ where: { id: userId }, data: parsed.data })
+  if (parsed.data.weeklyDigestEnabled) await markOnboardingStep(userId, 'digest')
   return NextResponse.json({ ok: true })
 })

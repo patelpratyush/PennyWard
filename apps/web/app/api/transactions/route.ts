@@ -5,6 +5,7 @@ import { withAuthErrorHandling } from '@/lib/withAuth'
 import { assertAccountOwned, assertCategoryOwned } from '@/lib/assertOwned'
 import { createTransactionSchema, listQuerySchema } from '@/lib/validation/transactions'
 import { round2 } from '@/lib/format'
+import { markOnboardingStep } from '@/lib/onboarding'
 import type { Prisma } from '@prisma/client'
 
 function toDTO(row: {
@@ -72,5 +73,6 @@ export const POST = withAuthErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: 'Category not found' }, { status: 404 })
   }
   const row = await db.transaction.create({ data: { ...parsed.data, date: new Date(parsed.data.date), userId, source: 'manual' } })
+  await markOnboardingStep(userId, 'transaction')
   return NextResponse.json(toDTO(row), { status: 201 })
 })

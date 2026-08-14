@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useStore } from '@/stores/useStore'
 import { useMe } from '@/hooks/queries/useMe'
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist'
 import { useGoals } from '@/hooks/queries/useGoals'
 import { useRecurring } from '@/hooks/queries/useRecurring'
 import { useNetWorthHistory } from '@/hooks/queries/useNetWorthHistory'
@@ -208,6 +209,7 @@ export default function Dashboard() {
           <h1 className="display text-[1.875rem] leading-none">{greeting}, {profile.preferredName}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Here is your financial overview for {formatMonth(now)}.</p>
         </div>
+        <OnboardingChecklist />
         <EmptyState
           title="Add your first account"
           description="Connect a checking, savings, or credit card account to see your net worth, budget, and spending come to life."
@@ -220,6 +222,7 @@ export default function Dashboard() {
 
   return (
     <div>
+      <OnboardingChecklist />
       {/* Header */}
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>

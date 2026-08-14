@@ -9,6 +9,7 @@ import { importHash } from '@/lib/importHash'
 import { round2 } from '@/lib/format'
 import { importRateLimit, checkRateLimit } from '@/lib/rateLimit'
 import { PLAN_LIMITS, upgradeRequired } from '@/lib/plan'
+import { markOnboardingStep } from '@/lib/onboarding'
 
 const schema = z.object({
   accountId: z.string(),
@@ -92,5 +93,6 @@ export const POST = withAuthErrorHandling(async (req: Request) => {
     imported++
   }
 
+  if (imported > 0) await markOnboardingStep(userId, 'transaction')
   return NextResponse.json({ imported, duplicates, review })
 })

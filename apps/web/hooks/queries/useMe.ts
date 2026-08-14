@@ -20,6 +20,8 @@ interface Me {
   plan: Plan
   limits: SerializedLimits
   weeklyDigestEnabled: boolean
+  onboardingSteps: Record<string, boolean>
+  onboardingDismissed: boolean
 }
 
 /**
@@ -37,7 +39,7 @@ export function useMe() {
 export function useUpdateMe() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (patch: { weeklyDigestEnabled: boolean }) =>
+    mutationFn: (patch: { weeklyDigestEnabled?: boolean; onboardingDismissed?: boolean }) =>
       fetchJSON('/api/me', { method: 'PATCH', body: JSON.stringify(patch) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['me'] }),
   })

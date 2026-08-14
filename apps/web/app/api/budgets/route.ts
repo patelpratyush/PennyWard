@@ -7,6 +7,7 @@ import { assertCategoryOwned } from '@/lib/assertOwned'
 import { upsertBudgetSchema } from '@/lib/validation/budgets'
 import { round2 } from '@/lib/format'
 import { PLAN_LIMITS, upgradeRequired } from '@/lib/plan'
+import { markOnboardingStep } from '@/lib/onboarding'
 
 /**
  * A caller can see at most one budget per month: their own personal one, or —
@@ -92,5 +93,6 @@ export const PUT = withAuthErrorHandling(async (req: Request) => {
         })]
       : []),
   ])
+  await markOnboardingStep(userId, 'budget')
   return NextResponse.json({ id: budget.id })
 })

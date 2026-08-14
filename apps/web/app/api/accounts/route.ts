@@ -4,6 +4,7 @@ import { getRequiredSession } from '@/lib/session'
 import { withAuthErrorHandling } from '@/lib/withAuth'
 import { createAccountSchema } from '@/lib/validation/accounts'
 import { round2 } from '@/lib/format'
+import { markOnboardingStep } from '@/lib/onboarding'
 
 function toDTO(row: Awaited<ReturnType<typeof db.financialAccount.findFirstOrThrow>>) {
   return {
@@ -36,5 +37,6 @@ export const POST = withAuthErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
   const row = await db.financialAccount.create({ data: { ...parsed.data, userId } })
+  await markOnboardingStep(userId, 'account')
   return NextResponse.json(toDTO(row), { status: 201 })
 })

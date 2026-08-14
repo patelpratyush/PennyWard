@@ -36,6 +36,11 @@ model User {
   /// F13: opt-in weekly email digest (Resend). Off by default — sending
   /// unsolicited email isn't the default for a new signup.
   weeklyDigestEnabled Boolean @default(false)
+  /// Onboarding checklist progress, e.g. {"account": true, "transaction": true}.
+  /// Keys flip server-side the moment the underlying action happens (see
+  /// lib/onboarding.ts) — never set directly by the client.
+  onboardingSteps     Json    @default("{}")
+  onboardingDismissed Boolean @default(false)
 
   financialAccounts   FinancialAccount[]
   categories          Category[]

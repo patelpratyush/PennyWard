@@ -6,6 +6,7 @@ import { assertAccountOwned } from '@/lib/assertOwned'
 import { createGoalSchema } from '@/lib/validation/goals'
 import { round2 } from '@/lib/format'
 import { PLAN_LIMITS, upgradeRequired } from '@/lib/plan'
+import { markOnboardingStep } from '@/lib/onboarding'
 
 function toDTO(row: Awaited<ReturnType<typeof db.goal.findFirstOrThrow<{ include: { contributions: true } }>>>) {
   return {
@@ -50,5 +51,6 @@ export const POST = withAuthErrorHandling(async (req: Request) => {
     data: { ...rest, userId, accountId, targetDate: new Date(targetDate) },
     include: { contributions: true },
   })
+  await markOnboardingStep(userId, 'goal')
   return NextResponse.json(toDTO(row), { status: 201 })
 })

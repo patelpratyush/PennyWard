@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { encryptToken } from '@/lib/plaidCrypto'
 import { mapPlaidAccountType, plaidBalanceToAppBalance } from '@/lib/plaidAccountType'
 import { syncPlaidItem } from '@/lib/plaidSync'
+import { markOnboardingStep } from '@/lib/onboarding'
 
 const schema = z.object({ publicToken: z.string().min(1), institutionName: z.string().optional() })
 
@@ -47,6 +48,8 @@ export const POST = withAuthErrorHandling(async (req: Request) => {
   })
 
   const result = await syncPlaidItem(item.id).catch(() => ({ synced: 0 }))
+  await markOnboardingStep(userId, 'account')
+  await markOnboardingStep(userId, 'plaid')
 
   return NextResponse.json({ itemId: item.id, accountsLinked: accountsData.accounts.length, transactionsSynced: result.synced }, { status: 201 })
 })
